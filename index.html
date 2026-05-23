@@ -32,7 +32,13 @@
 
   /* title overlay */
   .titlecard{position:fixed;top:0;left:0;z-index:10;padding:1.8rem 2rem;pointer-events:none;
-    max-width:430px}
+    max-width:560px}
+  .titlecard .project-title{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:2.55rem;
+    text-transform:uppercase;letter-spacing:.02em;color:#7a1f12;line-height:1.02;
+    text-shadow:0 2px 4px rgba(255,255,255,.95),0 3px 22px rgba(255,255,255,.85),0 1px 0 rgba(255,255,255,.9)}
+  .titlecard .byline{font-family:'Marcellus',serif;letter-spacing:.2em;text-transform:uppercase;
+    font-size:.92rem;font-weight:500;color:#2a1c10;margin:.5rem 0 1.2rem;
+    text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 10px rgba(255,255,255,.8)}
   .titlecard .kicker{font-family:'Marcellus',serif;letter-spacing:.4em;text-transform:uppercase;
     font-size:.62rem;color:var(--gold);margin-bottom:.5rem}
   .titlecard h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:2.6rem;
@@ -50,6 +56,34 @@
     box-shadow:0 4px 16px rgba(60,40,10,.12)}
   .hint b{color:var(--gold);font-weight:400}
 
+  /* directory dropdown */
+  .directory{position:fixed;top:1.5rem;right:1.5rem;z-index:12;width:230px;
+    display:flex;flex-direction:column;align-items:stretch}
+  .dir-toggle{font-family:'Marcellus',serif;font-size:.7rem;letter-spacing:.1em;
+    padding:.55rem .9rem;border-radius:30px;cursor:pointer;
+    background:var(--gold);color:#fff;border:1px solid var(--gold);
+    display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+    box-shadow:0 4px 16px rgba(60,40,10,.18);transition:.2s}
+  .dir-toggle:hover{filter:brightness(1.05)}
+  .dir-toggle .chev{transition:transform .25s}
+  .directory.open .dir-toggle .chev{transform:rotate(180deg)}
+  .dir-list{margin-top:.4rem;max-height:0;overflow:hidden;overflow-y:auto;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+    border-radius:14px;box-shadow:0 12px 36px rgba(60,40,10,.22);
+    transition:max-height .35s ease, padding .35s ease, opacity .25s;opacity:0;padding:0 0;}
+  .directory.open .dir-list{max-height:62vh;opacity:1;padding:.5rem 0;
+    border:1px solid rgba(169,112,26,.22)}
+  .dir-group-head{font-family:'Marcellus',serif;letter-spacing:.12em;text-transform:uppercase;
+    font-size:.6rem;padding:.5rem .9rem .3rem;display:flex;align-items:center;gap:.45rem;color:#7a5a1a}
+  .dir-group-head .gdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .dir-item{font-family:'Spectral',serif;font-size:.82rem;color:#3a2a18;
+    padding:.34rem .9rem .34rem 1.7rem;cursor:pointer;transition:.15s;
+    display:flex;align-items:center;gap:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dir-item:hover{background:rgba(169,112,26,.14);color:#000}
+  .dir-item .idot{width:6px;height:6px;border-radius:50%;flex:none}
+  .dir-list::-webkit-scrollbar{width:7px}
+  .dir-list::-webkit-scrollbar-thumb{background:rgba(169,112,26,.4);border-radius:4px}
+
   /* music toggle */
   .music-btn{position:fixed;bottom:1.2rem;left:1.2rem;z-index:11;display:flex;align-items:center;gap:.5rem;
     font-family:'Marcellus',serif;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
@@ -66,7 +100,7 @@
   @keyframes notepulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.18);opacity:1}}
 
   /* filter chips */
-  .controls{position:fixed;top:1.5rem;right:1.5rem;z-index:10;display:flex;flex-direction:column;
+  .controls{position:fixed;top:4.2rem;right:1.5rem;z-index:10;display:flex;flex-direction:column;
     gap:.4rem;align-items:flex-end;max-width:46vw}
   .chip{font-family:'Marcellus',serif;font-size:.66rem;letter-spacing:.06em;padding:.42rem .8rem;
     border-radius:30px;cursor:pointer;background:rgba(255,255,255,.66);border:1px solid rgba(169,112,26,.28);
@@ -104,6 +138,15 @@
     font-size:.72rem;text-transform:uppercase;flex:none}
   .panel .meta .row span:last-child{text-align:right}
   .panel .elev{margin-top:1.2rem;font-size:.78rem;color:#b9a883;font-style:italic}
+  .panel .nav-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+    margin-top:1.8rem;padding-top:1.3rem;border-top:1px solid rgba(217,164,65,.22)}
+  .panel .nav-btn{font-family:'Marcellus',serif;font-size:.72rem;letter-spacing:.08em;
+    padding:.55rem 1rem;border-radius:30px;cursor:pointer;color:#1a1410;
+    background:var(--gold);border:1px solid var(--gold);transition:.18s;flex:none}
+  .panel .nav-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .panel .nav-btn:disabled{opacity:.35;cursor:default;transform:none;filter:none}
+  .panel .nav-count{font-family:'Marcellus',serif;font-size:.66rem;letter-spacing:.1em;
+    color:#b9a883;text-align:center;flex:1}
 
   @media(max-width:640px){
     .titlecard{max-width:62vw;padding:1.2rem 1.2rem}
@@ -130,12 +173,18 @@
 </script>
 
 <div class="titlecard">
+  <div class="project-title">Sacred Geography 3D Model Project</div>
+  <div class="byline">By DEVANSHI SINGH NEGI &nbsp;·&nbsp; 7B</div>
   <div class="kicker">Tīrtha · Sacred Geography</div>
   <h1>Bhārata<span class="sub">a living relief of pilgrimage</span></h1>
   <p>A true three-dimensional terrain — drag to orbit, scroll to zoom. The Himālaya rise in the north and the sacred rivers flow to the sea; tap any beacon or river to explore it.</p>
 </div>
 
 <div class="controls" id="controls"></div>
+<div class="directory" id="directory">
+  <button class="dir-toggle" id="dirToggle"><span>Explore all places</span><span class="chev">▾</span></button>
+  <div class="dir-list" id="dirList"></div>
+</div>
 <div class="hint">Drag to <b>orbit</b> · scroll to <b>zoom</b> · tap a <b>beacon</b> or <b>river</b></div>
 <button class="music-btn" id="musicBtn" aria-label="Toggle music"><span class="ico">♪</span><span class="lbl">Music on</span></button>
 
@@ -153,6 +202,11 @@
   </div>
   <div class="meta" id="pMeta"></div>
   <div class="elev" id="pElev"></div>
+  <div class="nav-row" id="pNav">
+    <button class="nav-btn" id="prevBtn" aria-label="Previous">‹ Back</button>
+    <span class="nav-count" id="pNavCount"></span>
+    <button class="nav-btn" id="nextBtn" aria-label="Next">Next ›</button>
+  </div>
 </aside>
 
 <script type="importmap">
@@ -286,12 +340,160 @@ const terrain=new THREE.Mesh(geo,mat);
 terrain.receiveShadow=true;
 scene.add(terrain);
 
-/* sea plane for nice horizon */
-const sea=new THREE.Mesh(
-  new THREE.PlaneGeometry(900,900),
-  new THREE.MeshStandardMaterial({color:0x4a97cc,roughness:.5,metalness:.15,transparent:true,opacity:.9})
-);
+/* animated ocean plane */
+const SEA_SIZE=1100, SEA_SEG=96;
+const seaGeo=new THREE.PlaneGeometry(SEA_SIZE,SEA_SIZE,SEA_SEG,SEA_SEG);
+const seaMat=new THREE.MeshStandardMaterial({color:0x2f86c5,roughness:.35,metalness:.25,
+  transparent:true,opacity:.92,flatShading:false});
+const sea=new THREE.Mesh(seaGeo,seaMat);
 sea.rotation.x=-Math.PI/2; sea.position.y=-2.6; scene.add(sea);
+// store base XY (in-plane) positions for wave calc; Z is the wave height (becomes world Y after rotation)
+const seaPos=seaGeo.attributes.position;
+const seaBase=new Float32Array(seaPos.count*2);
+for(let i=0;i<seaPos.count;i++){ seaBase[i*2]=seaPos.getX(i); seaBase[i*2+1]=seaPos.getY(i); }
+function animateOcean(t){
+  for(let i=0;i<seaPos.count;i++){
+    const x=seaBase[i*2], y=seaBase[i*2+1];
+    // layered traveling waves
+    const h = Math.sin(x*0.018 + t*0.9)*1.5
+            + Math.sin(y*0.022 - t*0.7)*1.3
+            + Math.sin((x+y)*0.013 + t*1.3)*0.9
+            + Math.sin((x-y)*0.03 + t*1.7)*0.5;
+    seaPos.setZ(i,h);
+  }
+  seaPos.needsUpdate=true;
+  seaGeo.computeVertexNormals();
+}
+
+/* ---------- decorative islands (unlabeled) ---------- */
+const islandMat=new THREE.MeshStandardMaterial({color:0xd9c89a,roughness:.95,metalness:0,flatShading:true});
+const sandMat=new THREE.MeshStandardMaterial({color:0xe8dcae,roughness:1,metalness:0});
+const palmTrunk=new THREE.MeshStandardMaterial({color:0x7a5230,roughness:.9});
+const palmLeaf=new THREE.MeshStandardMaterial({color:0x4f8b3b,roughness:.8,flatShading:true});
+// positions well out in the ocean, clear of the landmass (x,z in world units)
+const ISLANDS=[
+  [-230,260,7], [255,300,9], [320,-120,6], [-300,-60,8],
+  [180,-300,5], [-160,-330,6], [380,160,7], [-360,180,5.5]
+];
+ISLANDS.forEach(([x,z,r])=>{
+  const g=new THREE.Group();
+  // dome of land
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(r,12,8,0,Math.PI*2,0,Math.PI/2), islandMat);
+  dome.scale.y=0.5; g.add(dome);
+  // sandy beach ring
+  const beach=new THREE.Mesh(new THREE.CircleGeometry(r*1.5,18), sandMat);
+  beach.rotation.x=-Math.PI/2; beach.position.y=0.05; g.add(beach);
+  // a palm or two
+  const palms=1+Math.floor(Math.random()*2);
+  for(let p=0;p<palms;p++){
+    const pg=new THREE.Group();
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,r*1.1,6), palmTrunk);
+    trunk.position.y=r*0.55; pg.add(trunk);
+    for(let l=0;l<5;l++){
+      const leaf=new THREE.Mesh(new THREE.ConeGeometry(0.6,r*0.9,4), palmLeaf);
+      leaf.position.y=r*1.05; leaf.rotation.z=Math.PI/2.6; leaf.rotation.y=l*(Math.PI*2/5);
+      leaf.translateY(r*0.3); pg.add(leaf);
+    }
+    pg.position.set((Math.random()-0.5)*r*0.6, 0, (Math.random()-0.5)*r*0.6);
+    pg.scale.setScalar(0.8+Math.random()*0.5);
+    g.add(pg);
+  }
+  g.position.set(x, -2.0, z);
+  g.rotation.y=Math.random()*Math.PI*2;
+  scene.add(g);
+});
+
+/* ---------- flying birds (seagulls) ---------- */
+const birds=[];
+const gullBody=new THREE.MeshStandardMaterial({color:0xf7f7f4,roughness:.7,metalness:0});
+const gullWing=new THREE.MeshStandardMaterial({color:0xfbfbf8,roughness:.7,metalness:0,side:THREE.DoubleSide});
+const gullTip=new THREE.MeshStandardMaterial({color:0x4a4a4a,roughness:.7,metalness:0,side:THREE.DoubleSide});
+const gullBeak=new THREE.MeshStandardMaterial({color:0xe8a02a,roughness:.6,metalness:0});
+
+// build one wing as a flat shape (in local space, extending along -X), returns a group
+// pivot at shoulder so we can flap; inner+outer segments + dark tip
+function buildWing(){
+  const wing=new THREE.Group();           // shoulder pivot
+  // inner wing membrane (shoulder -> wrist)
+  const innerShape=new THREE.Shape();
+  innerShape.moveTo(0,-0.5);
+  innerShape.lineTo(-3.2,-0.9);
+  innerShape.lineTo(-3.2,0.7);
+  innerShape.lineTo(0,0.9);
+  innerShape.lineTo(0,-0.5);
+  const inner=new THREE.Mesh(new THREE.ShapeGeometry(innerShape),gullWing);
+  inner.rotation.x=-Math.PI/2;            // lay flat (spread in XZ plane)
+  wing.add(inner);
+  // outer wing (wrist -> tip), hinged
+  const wrist=new THREE.Group(); wrist.position.set(-3.2,0,0);
+  const outerShape=new THREE.Shape();
+  outerShape.moveTo(0,-0.55);
+  outerShape.lineTo(-3.4,-0.15);
+  outerShape.lineTo(-3.6,0.25);
+  outerShape.lineTo(0,0.7);
+  outerShape.lineTo(0,-0.55);
+  const outer=new THREE.Mesh(new THREE.ShapeGeometry(outerShape),gullWing);
+  outer.rotation.x=-Math.PI/2; wrist.add(outer);
+  // dark wingtip
+  const tipShape=new THREE.Shape();
+  tipShape.moveTo(-2.6,-0.2); tipShape.lineTo(-3.6,0.25); tipShape.lineTo(-3.4,-0.1); tipShape.lineTo(-2.6,-0.2);
+  const tip=new THREE.Mesh(new THREE.ShapeGeometry(tipShape),gullTip);
+  tip.rotation.x=-Math.PI/2; tip.position.y=0.02; wrist.add(tip);
+  wing.add(wrist);
+  wing.userData={wrist};
+  return wing;
+}
+
+function makeBird(){
+  const g=new THREE.Group();
+  // body: tapered ellipsoid
+  const body=new THREE.Mesh(new THREE.SphereGeometry(0.9,12,10), gullBody);
+  body.scale.set(2.4,0.8,0.8); g.add(body);
+  // tail
+  const tail=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.6,6), gullBody);
+  tail.rotation.z=Math.PI/2; tail.scale.set(1,1,0.4); tail.position.x=2.4; g.add(tail);
+  // head
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.62,12,10), gullBody);
+  head.position.set(-2.0,0.25,0); g.add(head);
+  // beak
+  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.7,6), gullBeak);
+  beak.rotation.z=-Math.PI/2; beak.position.set(-2.7,0.2,0); g.add(beak);
+  // wings
+  const wingL=buildWing(); wingL.position.set(0,0.2,0.4);
+  const wingR=buildWing(); wingR.position.set(0,0.2,-0.4); wingR.scale.z=-1; // mirror
+  g.add(wingL); g.add(wingR);
+
+  g.userData={wingL,wingR,
+    radius:130+Math.random()*200, speed:0.05+Math.random()*0.05,
+    phase:Math.random()*Math.PI*2, height:55+Math.random()*50,
+    cx:(Math.random()-0.5)*220, cz:(Math.random()-0.5)*220,
+    flap:Math.random()*Math.PI*2, flapSpeed:3.2+Math.random()*2.2,
+    scale:1.5+Math.random()*1.6, bobPhase:Math.random()*Math.PI*2};
+  g.scale.setScalar(g.userData.scale);
+  scene.add(g); birds.push(g);
+}
+for(let i=0;i<12;i++) makeBird();
+
+function animateBirds(t){
+  birds.forEach(b=>{
+    const u=b.userData;
+    const a=u.phase + t*u.speed;
+    // glide in a slow circle, gentle vertical bob
+    b.position.set(u.cx+Math.cos(a)*u.radius,
+                   u.height+Math.sin(t*0.3+u.bobPhase)*5,
+                   u.cz+Math.sin(a)*u.radius);
+    b.rotation.y=-a;                 // face travel direction (tangent to circle)
+    b.rotation.z=Math.sin(a)*0.12;   // subtle bank into the turn
+    // flapping: shoulders rise/fall, wrists trail for a natural curve
+    const flap=Math.sin(t*u.flapSpeed+u.flap);
+    const sh=flap*0.55;              // shoulder dihedral
+    const wr=Math.sin(t*u.flapSpeed+u.flap-0.6)*0.5; // wrist lags the shoulder
+    u.wingL.rotation.x = -sh;
+    u.wingR.rotation.x =  sh;
+    u.wingL.userData.wrist.rotation.x = -wr;
+    u.wingR.userData.wrist.rotation.x =  wr;
+  });
+}
 
 /* ---------- helper: world position from uv ---------- */
 function worldFromUV(u,v){
@@ -412,20 +614,27 @@ function catmullPts(uvPts, lift){
 
 RIVERS.forEach((r,ri)=>{
   const color=new THREE.Color(r.color);
-  const curve=catmullPts(r.pts, r.ghost?1.4:0.9);
-  const tube=new THREE.TubeGeometry(curve, 120, r.ghost?0.55:0.95, 8, false);
+  const curve=catmullPts(r.pts, r.ghost?2.6:2.2);
+  const tube=new THREE.TubeGeometry(curve, 140, r.ghost?1.1:1.7, 10, false);
   const mat=new THREE.MeshStandardMaterial({
-    color, emissive:color, emissiveIntensity:r.ghost?0.5:0.8,
-    roughness:.25, metalness:.25, transparent:true, opacity:r.ghost?0.5:0.92
+    color, emissive:color, emissiveIntensity:r.ghost?0.9:1.3,
+    roughness:.25, metalness:.25, transparent:true, opacity:r.ghost?0.7:0.98
   });
   const mesh=new THREE.Mesh(tube,mat);
   mesh.userData={river:ri};
   riverGroup.add(mesh);
 
+  // bright white core to read clearly against terrain
+  const core=new THREE.Mesh(
+    new THREE.TubeGeometry(curve,140,(r.ghost?0.4:0.6),8,false),
+    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:r.ghost?0.25:0.5,depthWrite:false})
+  );
+  core.userData={river:ri}; riverGroup.add(core);
+
   // soft outer glow tube
   const glow=new THREE.Mesh(
-    new THREE.TubeGeometry(curve,120,(r.ghost?1.2:1.7),8,false),
-    new THREE.MeshBasicMaterial({color,transparent:true,opacity:r.ghost?0.08:0.16,depthWrite:false})
+    new THREE.TubeGeometry(curve,140,(r.ghost?2.4:3.2),10,false),
+    new THREE.MeshBasicMaterial({color,transparent:true,opacity:r.ghost?0.14:0.28,depthWrite:false})
   );
   glow.userData={river:ri};
   riverGroup.add(glow);
@@ -465,7 +674,7 @@ RIVERS.forEach((r,ri)=>{
     riverBeacons.push({bg,ri});
   });
 
-  riverObjs.push({mesh,glow,bead,curve,bcns,meta:r,color});
+  riverObjs.push({mesh,glow,core,bead,curve,bcns,meta:r,color});
 });
 
 /* ---------- lights ---------- */
@@ -488,7 +697,7 @@ function setNdc(ev){
   ndc.y=-((ev.clientY-r.top)/r.height)*2+1;
   ray.setFromCamera(ndc,camera);
 }
-function pickJewel(ev){ setNdc(ev); return ray.intersectObjects(beacons.map(b=>b.jewel),false); }
+function pickJewel(ev){ setNdc(ev); return ray.intersectObjects(beacons.filter(b=>b.g.visible).map(b=>b.jewel),false); }
 function pickRiver(ev){
   setNdc(ev);
   const targets=[];
@@ -556,17 +765,90 @@ function setFilter(cat,el){
   beacons.forEach(b=>{ b.g.visible = riversOnly?false:(cat==='all'||b.cat===cat); });
   const showRivers=(cat==='all'||riversOnly);
   riverObjs.forEach(o=>{
-    o.mesh.visible=showRivers; o.glow.visible=showRivers; o.bead.visible=showRivers;
+    o.mesh.visible=showRivers; o.glow.visible=showRivers; o.core.visible=showRivers; o.bead.visible=showRivers;
     o.bcns.forEach(b=>b.bg.visible=showRivers);
   });
+}
+
+/* ---------- isolate-by-category for viewing + navigation ---------- */
+// ordered site indices per category (for prev/next)
+const CAT_ORDER={};
+Object.keys(CATS).forEach(k=>{
+  CAT_ORDER[k]=SITES.map((s,i)=>({s,i})).filter(o=>o.s.c===k).map(o=>o.i);
+});
+const RIVER_ORDER=riverObjs.map((_,i)=>i);
+
+// Show ONLY one site-category on the map (hide all rivers + other categories)
+function showOnlyCategory(catKey){
+  beacons.forEach(b=>{ b.g.visible = (b.cat===catKey); });
+  riverObjs.forEach(o=>{ o.mesh.visible=false; o.glow.visible=false; o.core.visible=false; o.bead.visible=false; o.bcns.forEach(b=>b.bg.visible=false); });
+  // sync the chip highlight
+  [...controlsEl.children].forEach(c=>c.classList.toggle('active', c.dataset.cat===catKey));
+}
+// Show ONLY rivers (hide every site beacon)
+function showOnlyRivers(){
+  beacons.forEach(b=>{ b.g.visible=false; });
+  riverObjs.forEach(o=>{ o.mesh.visible=true; o.glow.visible=true; o.core.visible=true; o.bead.visible=true; o.bcns.forEach(b=>b.bg.visible=true); });
+  [...controlsEl.children].forEach(c=>c.classList.toggle('active', c.dataset.cat==='rivers'));
 }
 // rivers visible by default (alongside all sites)
 riverObjs.forEach(()=>{});
 
+/* ---------- directory dropdown (grouped, click to fly) ---------- */
+const dirToggle=document.getElementById('dirToggle');
+const dirList=document.getElementById('dirList');
+const directory=document.getElementById('directory');
+dirToggle.addEventListener('click',(e)=>{ e.stopPropagation(); directory.classList.toggle('open'); });
+// close dropdown when clicking elsewhere
+window.addEventListener('pointerdown',(e)=>{ if(!directory.contains(e.target)) directory.classList.remove('open'); });
+
+function addGroupHead(label,hex){
+  const h=document.createElement('div'); h.className='dir-group-head';
+  h.innerHTML=`<span class="gdot" style="background:${hex}"></span>${label}`;
+  dirList.appendChild(h);
+}
+function addItem(label,hex,onClick){
+  const it=document.createElement('div'); it.className='dir-item';
+  it.innerHTML=`<span class="idot" style="background:${hex}"></span>${label}`;
+  it.addEventListener('click',(e)=>{ e.stopPropagation(); directory.classList.remove('open'); onClick(); });
+  dirList.appendChild(it);
+}
+// group sites by category, in CATS order
+Object.entries(CATS).forEach(([key,cat])=>{
+  const members=SITES.map((s,i)=>({s,i})).filter(o=>o.s.c===key);
+  if(!members.length) return;
+  addGroupHead(cat.label,cat.hex);
+  members.sort((a,b)=>a.s.n.localeCompare(b.s.n)).forEach(({s,i})=>{
+    addItem(s.n,cat.hex,()=>{ openPanel(i); flyTo(i); });
+  });
+});
+// rivers group
+addGroupHead('Sacred Rivers','#29b6f6');
+riverObjs.map((o,ri)=>({o,ri})).sort((a,b)=>a.o.meta.name.localeCompare(b.o.meta.name)).forEach(({o,ri})=>{
+  addItem(o.meta.name,o.meta.hex,()=>{ openRiverPanel(ri); flyToRiver(ri); });
+});
+// helpers: if a filter is hiding the target, switch back to "Show all"
+function resetToAll(){
+  const allChipEl=[...controlsEl.children].find(c=>c.dataset.cat==='all');
+  if(allChipEl) setFilter('all',allChipEl);
+}
+function ensureSitesVisible(){ resetToAll(); }
+function ensureRiversVisible(){ resetToAll(); }
+
 /* ---------- detail panel ---------- */
 const panel=document.getElementById('panel');
+/* ---------- active-highlight system ---------- */
+// active = {type:'site'|'river', idx}. When set, that beacon/river glows brightly
+// and pulses; everything else is gently dimmed.
+let active=null;
+function setActive(type,idx){ active={type,idx}; }
+function clearActive(){ active=null; }
+
 function openPanel(idx){
+  setActive('site',idx);
   const s=SITES[idx], cat=CATS[s.c];
+  showOnlyCategory(s.c);          // show only beacons in this category
+  updateNav('site',s.c,idx);
   const pc=document.getElementById('pCat'); pc.textContent=cat.label;
   pc.style.background=cat.hex;
   // pick dark text on light pills (yellow/cyan/teal), white on dark
@@ -588,6 +870,9 @@ function openPanel(idx){
   panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
 function openRiverPanel(ri){
+  setActive('river',ri);
+  showOnlyRivers();
+  updateNav('river',null,ri);
   const r=riverObjs[ri].meta;
   const pc=document.getElementById('pCat'); pc.textContent='Sacred river';
   pc.style.background=r.hex;
@@ -607,7 +892,43 @@ function openRiverPanel(ri){
   document.getElementById('pElev').textContent = r.ghost ? 'A lost / invisible river of legend' : 'Flows across the living terrain';
   panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
-function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); flyHome(); }
+/* ---------- prev / next navigation ---------- */
+let navList=[], navPos=0, navKind='site';
+function updateNav(kind, catKey, idx){
+  navKind=kind;
+  navList = (kind==='river') ? RIVER_ORDER : CAT_ORDER[catKey];
+  navPos = navList.indexOf(idx);
+  const total=navList.length;
+  const countEl=document.getElementById('pNavCount');
+  countEl.textContent = total>1 ? `${navPos+1} of ${total}` : 'only one';
+  document.getElementById('prevBtn').disabled = total<=1;
+  document.getElementById('nextBtn').disabled = total<=1;
+}
+function navStep(dir){
+  if(!navList.length) return;
+  navPos=(navPos+dir+navList.length)%navList.length;   // wrap around
+  const target=navList[navPos];
+  if(navKind==='river'){ openRiverPanel(target); flyToRiver(target); }
+  else { openPanel(target); flyTo(target); }
+}
+document.getElementById('prevBtn').addEventListener('click',e=>{e.stopPropagation();navStep(-1);});
+document.getElementById('nextBtn').addEventListener('click',e=>{e.stopPropagation();navStep(1);});
+addEventListener('keydown',e=>{
+  if(!panel.classList.contains('open')) return;
+  if(e.key==='ArrowRight') navStep(1);
+  else if(e.key==='ArrowLeft') navStep(-1);
+});
+
+function restoreAllVisible(){
+  beacons.forEach(b=>{ b.g.visible=true; });
+  riverObjs.forEach(o=>{ o.mesh.visible=true; o.glow.visible=true; o.core.visible=true; o.bead.visible=true; o.bcns.forEach(b=>b.bg.visible=true); });
+  const allChipEl=[...controlsEl.children].find(c=>c.dataset.cat==='all');
+  [...controlsEl.children].forEach(c=>c.classList.toggle('active', c===allChipEl));
+}
+function closePanel(){
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true');
+  clearActive(); restoreAllVisible(); flyHome();
+}
 document.getElementById('closeBtn').addEventListener('click',closePanel);
 addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
 
@@ -622,30 +943,56 @@ const clock=new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
   const t=clock.getElapsedTime();
+  animateOcean(t);
+  animateBirds(t);
+  const siteActive = active && active.type==='site' ? active.idx : -1;
+  const riverActive = active && active.type==='river' ? active.idx : -1;
+  const glowPulse = 0.5+0.5*Math.sin(t*4);   // fast bright pulse for the selected one
+
   beacons.forEach((b,i)=>{
     if(!b.g.visible) return;
+    const isOn = (i===siteActive);
+    const dimmed = (active && active.type==='site' && !isOn);
     const bob=Math.sin(t*1.5+i)*0.5;
+    const lift = isOn ? 4.0 : 0;            // selected jewel rides clearly higher
     b.jewel.rotation.y=t*0.8+i;
-    b.jewel.position.y=b.g.userData.baseY+bob;
+    b.jewel.position.y=b.g.userData.baseY+bob+lift;
     b.shell.rotation.y=t*0.8+i;
-    b.shell.position.y=b.g.userData.baseY+bob;
-    b.ring.scale.setScalar(1+Math.sin(t*2+i)*0.08);
-    const pulse=0.5+Math.sin(t*2+i)*0.14; b.beam.material.opacity=pulse;
+    b.shell.position.y=b.g.userData.baseY+bob+lift;
+    // scale: selected grows much larger and breathes; others shrink back
+    const baseScale = isOn ? 2.1+0.25*glowPulse : (dimmed ? 0.8 : 1.0);
+    b.jewel.scale.setScalar(baseScale);
+    b.shell.scale.setScalar(baseScale);
+    // emissive brightness
+    b.jewel.material.emissiveIntensity = isOn ? 1.8+1.6*glowPulse : (dimmed ? 0.4 : 1.0);
+    // ring + beam
+    b.ring.scale.setScalar((isOn?2.2:1)+Math.sin(t*2+i)*0.08);
+    b.ring.material.opacity = isOn ? 0.6+0.35*glowPulse : (dimmed ? 0.12 : 0.45);
+    b.beam.material.opacity = isOn ? (0.75+0.25*glowPulse) : (dimmed ? 0.15 : (0.5+Math.sin(t*2+i)*0.14));
   });
+
   // rivers: travelling flow beads + pulsing beacons
   riverObjs.forEach((o,i)=>{
+    const isOn = (i===riverActive);
+    const dimmed = (active && active.type==='river' && !isOn);
+    // ribbon glow — bright even at rest, dazzling when selected
+    o.mesh.material.emissiveIntensity = isOn ? (2.0+1.8*glowPulse) : (dimmed ? 0.5 : (o.meta.ghost?0.9:1.3));
+    o.mesh.material.opacity = isOn ? 1.0 : (dimmed ? 0.5 : (o.meta.ghost?0.7:0.98));
+    o.glow.material.opacity = isOn ? (0.45+0.3*glowPulse) : (dimmed?0.1:(o.meta.ghost?0.14:0.28));
+    if(o.core) o.core.material.opacity = isOn ? (0.7+0.2*glowPulse) : (dimmed?0.2:(o.meta.ghost?0.25:0.5));
     if(o.bead.visible){
-      const p=((t*0.06+i*0.13)%1);
+      const p=((t*(isOn?0.12:0.06)+i*0.13)%1);   // selected river flows faster
       o.bead.position.copy(o.curve.getPoint(p));
       o.bead.position.y+=1.2;
-      const fade=Math.sin(p*Math.PI);     // dim at the ends
-      o.bead.material.opacity=0.25+0.65*fade;
-      o.bead.scale.setScalar(0.7+0.5*fade);
+      const fade=Math.sin(p*Math.PI);
+      o.bead.material.opacity=(isOn?0.7:0.25)+0.65*fade;
+      o.bead.scale.setScalar((isOn?1.8:0.7)+0.6*fade);
     }
     o.bcns.forEach((bc,k)=>{
       if(!bc.bg.visible) return;
       bc.mk.rotation.z=t*0.6+k;
-      const s=1+Math.sin(t*2.2+k+i)*0.12; bc.mk.scale.setScalar(s);
+      const s=(isOn?2.1+0.35*glowPulse:1)+Math.sin(t*2.2+k+i)*0.12; bc.mk.scale.setScalar(s);
+      bc.mk.material.emissiveIntensity = isOn ? (1.8+1.4*glowPulse) : (dimmed?0.35:1.0);
     });
   });
   if(flyT!==null){
@@ -750,6 +1097,33 @@ const Music=(()=>{
     schedTimer=setTimeout(schedule, gap*1000);
   }
 
+  function startOcean(){
+    // surf = filtered noise whose volume swells like waves
+    const bufferSize=2*ctx.sampleRate;
+    const noiseBuf=ctx.createBuffer(1,bufferSize,ctx.sampleRate);
+    const data=noiseBuf.getChannelData(0);
+    let last=0;
+    for(let i=0;i<bufferSize;i++){
+      const white=Math.random()*2-1;
+      last=(last+0.02*white)/1.02; data[i]=last*3.2; // brown-ish noise
+    }
+    const noise=ctx.createBufferSource(); noise.buffer=noiseBuf; noise.loop=true;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=520; bp.Q.value=0.5;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1100;
+    const surfGain=ctx.createGain(); surfGain.gain.value=0.10;
+    // slow wave swell LFO
+    const lfo=ctx.createOscillator(); lfo.frequency.value=0.12;
+    const lfoG=ctx.createGain(); lfoG.gain.value=0.07;
+    lfo.connect(lfoG); lfoG.connect(surfGain.gain);
+    // a second, slower swell for natural irregularity
+    const lfo2=ctx.createOscillator(); lfo2.frequency.value=0.05;
+    const lfo2G=ctx.createGain(); lfo2G.gain.value=0.04;
+    lfo2.connect(lfo2G); lfo2G.connect(surfGain.gain);
+    noise.connect(bp); bp.connect(lp); lp.connect(surfGain); surfGain.connect(master);
+    noise.start(); lfo.start(); lfo2.start();
+    voices.push(noise,lfo,lfo2);
+  }
+
   function ensure(){
     if(started) return;
     started=true;
@@ -758,6 +1132,7 @@ const Music=(()=>{
     droneGain=ctx.createGain(); droneGain.gain.value=1.0; droneGain.connect(master);
     reverb=makeReverb(); reverb.output.connect(master);
     startDrone();
+    startOcean();
     // fade in master
     master.gain.setTargetAtTime(on?0.5:0.0, ctx.currentTime, 3.0);
     schedule();
