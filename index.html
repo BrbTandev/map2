@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Tīrtha · 3D Sacred Geography of Bhārata</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,13 +15,14 @@
     --saffron:#d35b1c; --deep:#9a4a22; --vermilion:#c0432a; --panel-bg:#1a1410;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;overflow:hidden}
+  html,body{height:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;
+    touch-action:none;-webkit-tap-highlight-color:transparent}
   body{
     font-family:'Spectral',serif;color:var(--ink);
     background:radial-gradient(circle at 50% 25%, #d6effb, #bfe3f5 70%, #a9d4ec);
     -webkit-font-smoothing:antialiased;
   }
-  #scene{position:fixed;inset:0;z-index:1;cursor:grab}
+  #scene{position:fixed;inset:0;z-index:1;cursor:grab;touch-action:none}
   #scene:active{cursor:grabbing}
   #loading{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
     align-items:center;justify-content:center;
@@ -149,13 +152,62 @@
     color:#b9a883;text-align:center;flex:1}
 
   @media(max-width:640px){
-    .titlecard{max-width:62vw;padding:1.2rem 1.2rem}
-    .titlecard h1{font-size:1.8rem}
+    /* honour notches / home indicator */
+    .titlecard{top:env(safe-area-inset-top,0)}
+    .directory{top:calc(.7rem + env(safe-area-inset-top,0))}
+    .controls{top:calc(4.6rem + env(safe-area-inset-top,0))}
+    .hint{bottom:calc(.7rem + env(safe-area-inset-bottom,0))}
+    .music-btn{bottom:calc(.7rem + env(safe-area-inset-bottom,0));left:calc(.7rem + env(safe-area-inset-left,0))}
+    /* Title: compact, top-left, sits above a row of controls */
+    .titlecard{max-width:56vw;padding:.55rem .7rem;z-index:13}
+    .titlecard .project-title{font-size:.92rem;line-height:1.12;letter-spacing:.01em}
+    .titlecard .byline{font-size:.56rem;letter-spacing:.1em;margin:.25rem 0 0}
+    .titlecard .kicker{display:none}
+    .titlecard h1{display:none}
     .titlecard p{display:none}
-    .controls{top:auto;bottom:3.4rem;right:.8rem;max-width:60vw}
-    .chip{font-size:.6rem;padding:.36rem .7rem}
-    .panel{width:100%}
+
+    /* Dropdown: top-right, narrower */
+    .directory{top:.7rem;right:.7rem;width:42vw;max-width:170px;z-index:14}
+    .dir-toggle{font-size:.6rem;padding:.45rem .6rem;letter-spacing:.04em}
+    .directory.open .dir-list{max-height:56vh}
+    .dir-item{font-size:.8rem;padding:.42rem .8rem .42rem 1.5rem}
+    .dir-group-head{font-size:.56rem}
+
+    /* Filter chips: horizontal scrolling strip below the title/dropdown row */
+    .controls{top:auto;bottom:auto;left:0;right:0;top:4.6rem;
+      flex-direction:row;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+      align-items:center;max-width:100vw;width:100vw;gap:.4rem;
+      padding:.3rem .7rem;-webkit-overflow-scrolling:touch;
+      scrollbar-width:none;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+    .controls::-webkit-scrollbar{display:none}
+    .chip{font-size:.62rem;padding:.4rem .7rem;flex:none}
+
+    /* Hint: smaller, lifted above the music button row */
+    .hint{font-size:.56rem;padding:.4rem .8rem;bottom:.7rem;letter-spacing:.08em;
+      max-width:62vw;line-height:1.5}
+
+    /* Music: compact bottom-left */
+    .music-btn{bottom:.7rem;left:.7rem;font-size:.58rem;padding:.4rem .7rem}
+    .music-btn .lbl{display:none}
+
+    /* Panel: full screen, comfortable padding, room for nav */
+    .panel{width:100%;padding:1.6rem 1.3rem 2rem}
+    .panel h2{font-size:2rem}
+    .panel .close{top:.9rem;right:1rem;font-size:1.8rem;padding:.2rem}
+    .panel .desc{font-size:.92rem}
+    .panel .nav-btn{font-size:.66rem;padding:.5rem .8rem}
   }
+
+  /* very small / portrait phones */
+  @media(max-width:380px){
+    .titlecard .project-title{font-size:1rem}
+    .directory{width:40vw}
+    .chip{font-size:.58rem}
+  }
+
+  /* allow touch-scroll within scrollable overlays (body blocks it globally) */
+  .panel,.dir-list,.controls{touch-action:pan-y}
+  .controls{touch-action:pan-x}
 </style>
 </head>
 <body>
@@ -239,7 +291,7 @@ const CATS = {
   other:   {label:"Great pilgrimage",    color:0x00e0c6, hex:"#00e0c6"}
 };
 const SITES = [
- {n:"Badrinath",u:0.4125,v:0.2396,c:"chardham",deity:"Viṣṇu (Badrīnārāyaṇa)",region:"Uttarakhand",circuit:"Char Dhām · Chota Char Dhām",d:"The northernmost of the four great Char Dhām, perched at 3,133 m on the banks of the Alaknandā between the Nara and Nārāyaṇa peaks, in the shadow of Nīlkaṇṭha. Legend holds that Viṣṇu sat here in penance, exposed to the snows, until Lakṣmī took the form of a badari (jujube) tree to shelter him — giving the place its name. The black-stone Śālagrāma image of Badrīnārāyaṇa is said to have been installed by Ādi Śaṅkarācārya in the 8th century after he recovered it from the Alaknandā. The temple opens for only about six months a year; when it closes for winter, the lamp is left burning and worship is believed to continue by the gods themselves. Pilgrims bathe in the boiling Tapt Kund hot springs before darśan.",culture:"For millions of Hindus, reaching Badrinath at least once is a lifelong aspiration, the crown of the Char Dhām Yātrā. Whole families pool savings for years to make the journey together; the road from Rishikesh fills each summer with buses, pilgrims and wandering sādhus. The Garhwali hill communities along the route live by the pilgrim season, running tea-stalls, lodges, ponies and porter services, and the temple's rāwal (head priest) is traditionally a Namboodiri brahmin from far-off Kerala — a thread binding the Himālaya to the southern tip of India."},
+ {n:"Badrinath",u:0.4125,v:0.2396,c:"chardham",c2:"chota",deity:"Viṣṇu (Badrīnārāyaṇa)",region:"Uttarakhand",circuit:"Char Dhām · Chota Char Dhām",d:"The northernmost of the four great Char Dhām, perched at 3,133 m on the banks of the Alaknandā between the Nara and Nārāyaṇa peaks, in the shadow of Nīlkaṇṭha. Legend holds that Viṣṇu sat here in penance, exposed to the snows, until Lakṣmī took the form of a badari (jujube) tree to shelter him — giving the place its name. The black-stone Śālagrāma image of Badrīnārāyaṇa is said to have been installed by Ādi Śaṅkarācārya in the 8th century after he recovered it from the Alaknandā. The temple opens for only about six months a year; when it closes for winter, the lamp is left burning and worship is believed to continue by the gods themselves. Pilgrims bathe in the boiling Tapt Kund hot springs before darśan.",culture:"For millions of Hindus, reaching Badrinath at least once is a lifelong aspiration, the crown of the Char Dhām Yātrā. Whole families pool savings for years to make the journey together; the road from Rishikesh fills each summer with buses, pilgrims and wandering sādhus. The Garhwali hill communities along the route live by the pilgrim season, running tea-stalls, lodges, ponies and porter services, and the temple's rāwal (head priest) is traditionally a Namboodiri brahmin from far-off Kerala — a thread binding the Himālaya to the southern tip of India."},
  {n:"Kedarnath",u:0.40,v:0.2396,c:"chota",deity:"Śiva (Kedāreśvara)",region:"Uttarakhand",circuit:"Chota Char Dhām · Jyotirliṅga",d:"The highest of the twelve Jyotirliṅgas, at 3,583 m below the Kedarnath peak, reached by a steep 16 km trek from Gaurikund. Here Śiva is worshipped not as a carved liṅga but as a rough triangular rock — said to be the hump of the bull into which he transformed to escape the Pāṇḍavas, who sought him to absolve the sin of killing kin at Kurukṣetra. The present stone temple is attributed to Ādi Śaṅkara, built over an older shrine of the Pāṇḍava age. In 2013 catastrophic floods devastated the town, yet the temple itself survived, shielded by a great boulder that split the torrent — an event many read as divine protection.",culture:"Kedarnath embodies the Indian ideal of pilgrimage as hardship and devotion: the trek itself is the prayer. After the 2013 disaster the whole nation followed the rescue and rebuilding, and the shrine became a symbol of resilience. Local Garhwali porters, palanquin-bearers and pony-handlers depend on the season, and the doli (palanquin) procession that carries the deity down to its winter seat at Ukhimath each autumn is a beloved regional event lining the valley with villagers."},
  {n:"Gangotri",u:0.3961,v:0.2316,c:"chota",deity:"Goddess Gaṅgā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The shrine marking the celestial descent of the Gaṅgā, at 3,100 m on the Bhāgīrathī. The true glacial source, Gaumukh ('cow's mouth'), lies 18 km further upstream at the snout of the Gangotri glacier. The river is venerated as the goddess who poured from heaven to liberate the ashes of King Bhagīratha's ancestors — her world-shattering fall broken by Śiva, who caught her in his matted locks and released her gently to earth. The white temple was built by the Gorkha general Amar Singh Thapa in the early 18th century. Pilgrims carry Gangotri water across India to offer at distant Śiva shrines.",culture:"Gangotri anchors the cultural idea that the Gaṅgā is a living mother. Pilgrims fill sealed copper pots with her water to carry home for weddings, last rites and house blessings — a custom that links a remote glacier to kitchens across India. The Kānwar Yātrā each monsoon sees millions of saffron-clad young 'kānwariyas' walk barefoot to fetch this water, one of the largest annual foot-pilgrimages on Earth."},
  {n:"Yamunotri",u:0.382,v:0.2309,c:"chota",deity:"Goddess Yamunā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The westernmost gate of the Chota Char Dhām, at 3,293 m, dedicated to the goddess Yamunā — daughter of the sun Sūrya and sister of Yama, lord of death. Those who bathe in her waters are said to be spared a painful death. The actual source lies at the frozen Champāsar glacier and the Kālinda peak above. Around the shrine steam the Sūrya Kund hot springs, hot enough that pilgrims tie rice and potatoes in cloth and lower them in to cook a sanctified prasād. The temple was raised in the 19th century by the Maharani of Jaipur.",culture:"As the seat of the goddess who spares her devotees a fearful death, Yamunotri draws pilgrims seeking blessing for their families. The hot-spring cooking of rice and potato prasād is a shared ritual that strangers perform side by side, and the hardy Jaunpuri hill villagers who guide and carry pilgrims have built a livelihood and identity around the route over generations."},
@@ -268,7 +320,7 @@ const SITES = [
 /* ---------- scene setup ---------- */
 const canvas=document.getElementById('scene');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth<640?1.5:2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.15;
@@ -277,14 +329,24 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xbfe3f5);     // bright daytime sky
 scene.fog=new THREE.FogExp2(0xcfe9f7,0.0042);   // soft pale haze
 
-const HOME_POS=new THREE.Vector3(0,95,135);
-const HOME_TGT=new THREE.Vector3(0,8,0);
+// Frame the whole map on any screen: pull back further when the viewport is
+// narrow/portrait (phones) so India fits comfortably in view.
+function computeHome(){
+  const aspect=innerWidth/innerHeight;
+  // narrower aspect -> need to be further away & higher
+  const dist = aspect<0.7 ? 215 : aspect<1.0 ? 175 : 135;
+  const high = aspect<0.7 ? 150 : aspect<1.0 ? 120 : 95;
+  return {pos:new THREE.Vector3(0,high,dist), tgt:new THREE.Vector3(0,8,0)};
+}
+let _home=computeHome();
+const HOME_POS=_home.pos.clone();
+const HOME_TGT=_home.tgt.clone();
 const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,2000);
 camera.position.copy(HOME_POS);
 
 const controls=new OrbitControls(camera,canvas);
 controls.enableDamping=true; controls.dampingFactor=.08;
-controls.minDistance=45; controls.maxDistance=320;
+controls.minDistance=45; controls.maxDistance=360;
 controls.maxPolarAngle=Math.PI*0.49;
 controls.target.copy(HOME_TGT);
 
@@ -341,7 +403,7 @@ terrain.receiveShadow=true;
 scene.add(terrain);
 
 /* animated ocean plane */
-const SEA_SIZE=1100, SEA_SEG=96;
+const SEA_SIZE=1100, SEA_SEG=(innerWidth<640?64:96);
 const seaGeo=new THREE.PlaneGeometry(SEA_SIZE,SEA_SIZE,SEA_SEG,SEA_SEG);
 const seaMat=new THREE.MeshStandardMaterial({color:0x2f86c5,roughness:.35,metalness:.25,
   transparent:true,opacity:.92,flatShading:false});
@@ -472,7 +534,7 @@ function makeBird(){
   g.scale.setScalar(g.userData.scale);
   scene.add(g); birds.push(g);
 }
-for(let i=0;i<12;i++) makeBird();
+for(let i=0;i<(innerWidth<640?8:12);i++) makeBird();
 
 function animateBirds(t){
   birds.forEach(b=>{
@@ -556,7 +618,7 @@ SITES.forEach((s,idx)=>{
   jewel.userData={idx,jewel:true};
   g.userData={idx,baseY:jewel.position.y,beamH};
   markerGroup.add(g);
-  beacons.push({g,jewel,shell,beam,ring,cat:s.c,color});
+  beacons.push({g,jewel,shell,beam,ring,cat:s.c,cat2:s.c2||null,color});
 });
 
 /* ---------- sacred rivers ---------- */
@@ -762,7 +824,7 @@ function mkChip(cat,label,hex,active){
 function setFilter(cat,el){
   [...controlsEl.children].forEach(c=>c.classList.remove('active')); el.classList.add('active');
   const riversOnly=(cat==='rivers');
-  beacons.forEach(b=>{ b.g.visible = riversOnly?false:(cat==='all'||b.cat===cat); });
+  beacons.forEach(b=>{ b.g.visible = riversOnly?false:(cat==='all'||b.cat===cat||b.cat2===cat); });
   const showRivers=(cat==='all'||riversOnly);
   riverObjs.forEach(o=>{
     o.mesh.visible=showRivers; o.glow.visible=showRivers; o.core.visible=showRivers; o.bead.visible=showRivers;
@@ -771,16 +833,18 @@ function setFilter(cat,el){
 }
 
 /* ---------- isolate-by-category for viewing + navigation ---------- */
+// a site belongs to a category via its primary (c) or secondary (c2) tag
+function siteInCat(s,key){ return s.c===key || s.c2===key; }
 // ordered site indices per category (for prev/next)
 const CAT_ORDER={};
 Object.keys(CATS).forEach(k=>{
-  CAT_ORDER[k]=SITES.map((s,i)=>({s,i})).filter(o=>o.s.c===k).map(o=>o.i);
+  CAT_ORDER[k]=SITES.map((s,i)=>({s,i})).filter(o=>siteInCat(o.s,k)).map(o=>o.i);
 });
 const RIVER_ORDER=riverObjs.map((_,i)=>i);
 
 // Show ONLY one site-category on the map (hide all rivers + other categories)
 function showOnlyCategory(catKey){
-  beacons.forEach(b=>{ b.g.visible = (b.cat===catKey); });
+  beacons.forEach(b=>{ b.g.visible = (b.cat===catKey || b.cat2===catKey); });
   riverObjs.forEach(o=>{ o.mesh.visible=false; o.glow.visible=false; o.core.visible=false; o.bead.visible=false; o.bcns.forEach(b=>b.bg.visible=false); });
   // sync the chip highlight
   [...controlsEl.children].forEach(c=>c.classList.toggle('active', c.dataset.cat===catKey));
@@ -813,13 +877,13 @@ function addItem(label,hex,onClick){
   it.addEventListener('click',(e)=>{ e.stopPropagation(); directory.classList.remove('open'); onClick(); });
   dirList.appendChild(it);
 }
-// group sites by category, in CATS order
+// group sites by category, in CATS order (dual-category sites appear in both)
 Object.entries(CATS).forEach(([key,cat])=>{
-  const members=SITES.map((s,i)=>({s,i})).filter(o=>o.s.c===key);
+  const members=SITES.map((s,i)=>({s,i})).filter(o=>siteInCat(o.s,key));
   if(!members.length) return;
   addGroupHead(cat.label,cat.hex);
   members.sort((a,b)=>a.s.n.localeCompare(b.s.n)).forEach(({s,i})=>{
-    addItem(s.n,cat.hex,()=>{ openPanel(i); flyTo(i); });
+    addItem(s.n,cat.hex,()=>{ openPanel(i,key); flyTo(i); });
   });
 });
 // rivers group
@@ -844,15 +908,17 @@ let active=null;
 function setActive(type,idx){ active={type,idx}; }
 function clearActive(){ active=null; }
 
-function openPanel(idx){
+function openPanel(idx, catContext){
   setActive('site',idx);
   const s=SITES[idx], cat=CATS[s.c];
-  showOnlyCategory(s.c);          // show only beacons in this category
-  updateNav('site',s.c,idx);
-  const pc=document.getElementById('pCat'); pc.textContent=cat.label;
-  pc.style.background=cat.hex;
+  // which category circuit are we browsing within? (defaults to primary)
+  const ctx = (catContext && siteInCat(s,catContext)) ? catContext : s.c;
+  showOnlyCategory(ctx);          // show only beacons in this circuit
+  updateNav('site',ctx,idx);
+  const pc=document.getElementById('pCat'); const pillCat=CATS[ctx]; pc.textContent=pillCat.label;
+  pc.style.background=pillCat.hex;
   // pick dark text on light pills (yellow/cyan/teal), white on dark
-  const c=cat.color; const lum=0.299*((c>>16)&255)+0.587*((c>>8)&255)+0.114*(c&255);
+  const c=pillCat.color; const lum=0.299*((c>>16)&255)+0.587*((c>>8)&255)+0.114*(c&255);
   pc.style.color = lum>150 ? '#1a1410' : '#ffffff';
   document.getElementById('pName').textContent=s.n;
   document.getElementById('pDeity').textContent='Presiding deity · '+s.deity;
@@ -893,9 +959,9 @@ function openRiverPanel(ri){
   panel.classList.add('open'); panel.setAttribute('aria-hidden','false');
 }
 /* ---------- prev / next navigation ---------- */
-let navList=[], navPos=0, navKind='site';
+let navList=[], navPos=0, navKind='site', navCtx=null;
 function updateNav(kind, catKey, idx){
-  navKind=kind;
+  navKind=kind; navCtx=catKey;
   navList = (kind==='river') ? RIVER_ORDER : CAT_ORDER[catKey];
   navPos = navList.indexOf(idx);
   const total=navList.length;
@@ -909,7 +975,7 @@ function navStep(dir){
   navPos=(navPos+dir+navList.length)%navList.length;   // wrap around
   const target=navList[navPos];
   if(navKind==='river'){ openRiverPanel(target); flyToRiver(target); }
-  else { openPanel(target); flyTo(target); }
+  else { openPanel(target, navCtx); flyTo(target); }   // stay within the same circuit
 }
 document.getElementById('prevBtn').addEventListener('click',e=>{e.stopPropagation();navStep(-1);});
 document.getElementById('nextBtn').addEventListener('click',e=>{e.stopPropagation();navStep(1);});
@@ -936,6 +1002,10 @@ addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
 addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
+  // update home framing for the new orientation/size
+  const h=computeHome(); HOME_POS.copy(h.pos); HOME_TGT.copy(h.tgt);
+  // if no panel is open (i.e. we're at/near the overview), re-frame to fit
+  if(!panel.classList.contains('open')) flyHome();
 });
 
 /* ---------- animate ---------- */
@@ -1007,11 +1077,11 @@ function animate(){
 /* intro camera sweep then reveal */
 function intro(){
   document.getElementById('loading').classList.add('hidden');
-  let a=0; const from=new THREE.Vector3(0,220,10), to=new THREE.Vector3(0,95,135);
+  let a=0; const from=new THREE.Vector3(0,HOME_POS.y*2.2,10), to=HOME_POS.clone();
   (function sweep(){
     a=Math.min(1,a+0.012); const e=1-Math.pow(1-a,3);
     camera.position.lerpVectors(from,to,e);
-    camera.lookAt(0,8,0);
+    camera.lookAt(HOME_TGT.x,HOME_TGT.y,HOME_TGT.z);
     if(a<1) requestAnimationFrame(sweep);
   })();
 }
