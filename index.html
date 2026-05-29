@@ -102,6 +102,75 @@
     background:#9a8a6a;transform:rotate(-32deg)}
   @keyframes notepulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.18);opacity:1}}
 
+  /* quiz button */
+  .quiz-btn{position:fixed;bottom:1.2rem;right:1.2rem;z-index:11;display:flex;align-items:center;gap:.55rem;
+    font-family:'Marcellus',serif;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+    color:#fff;background:linear-gradient(135deg,#d35b1c,#a9701a);
+    padding:.55rem .95rem;border-radius:30px;border:1px solid rgba(255,255,255,.35);cursor:pointer;
+    box-shadow:0 6px 20px rgba(122,31,18,.35);transition:.2s;animation:qpulse 3s ease-in-out infinite}
+  .quiz-btn:hover{transform:translateY(-2px);box-shadow:0 8px 26px rgba(122,31,18,.45)}
+  .quiz-btn .qico{display:inline-flex;align-items:center;justify-content:center;
+    width:18px;height:18px;border-radius:50%;background:#fff;color:#d35b1c;font-weight:700;font-size:.78rem}
+  .quiz-btn .qscore{font-family:'Spectral',serif;font-weight:500;font-size:.7rem;letter-spacing:0;
+    background:rgba(255,255,255,.22);padding:.05rem .5rem;border-radius:30px;min-width:1.4rem;text-align:center}
+  @keyframes qpulse{0%,100%{box-shadow:0 6px 20px rgba(122,31,18,.35)}50%{box-shadow:0 6px 28px rgba(216,107,47,.65)}}
+
+  /* quiz card */
+  .quiz-card{position:fixed;bottom:5rem;right:1.2rem;z-index:14;width:min(92vw,360px);
+    background:linear-gradient(160deg,#fdf6e6,#f3e6c8);border:1px solid rgba(169,112,26,.32);
+    border-radius:16px;box-shadow:0 20px 50px rgba(60,35,10,.28);padding:1rem 1.1rem 1.1rem;
+    transform:translateY(20px) scale(.95);opacity:0;pointer-events:none;
+    transition:transform .3s cubic-bezier(.3,1.4,.5,1), opacity .25s}
+  .quiz-card.open{transform:translateY(0) scale(1);opacity:1;pointer-events:auto}
+  .qhead{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem}
+  .qtitle{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:1.25rem;color:#7a1f12;flex:1}
+  .qmeta{display:flex;flex-direction:column;font-family:'Marcellus',serif;font-size:.58rem;letter-spacing:.08em;
+    color:#7a5a1a;text-align:right;line-height:1.4}
+  .qclose{background:none;border:none;font-size:1.4rem;color:#7a5a1a;cursor:pointer;line-height:1;padding:0 .2rem}
+  .qprompt{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:1.15rem;color:#2a1c10;line-height:1.3;margin-bottom:.3rem}
+  .qsubprompt{font-family:'Spectral',serif;font-size:.86rem;color:#5c4a30;font-style:italic;margin-bottom:.9rem;min-height:1.1rem}
+  .qchoices{display:flex;flex-direction:column;gap:.4rem;margin-bottom:.6rem}
+  .qchoice{font-family:'Spectral',serif;font-size:.92rem;color:#2a1c10;padding:.6rem .9rem;
+    background:rgba(255,255,255,.6);border:1px solid rgba(169,112,26,.28);border-radius:10px;
+    cursor:pointer;text-align:left;transition:.15s;display:flex;align-items:center;gap:.6rem}
+  .qchoice:hover:not(.locked){background:rgba(255,255,255,.95);border-color:var(--gold);transform:translateX(2px)}
+  .qchoice .qdot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none;transition:.15s}
+  .qchoice.locked{cursor:default}
+  .qchoice.right{background:#dbf0d3;border-color:#5fa84a;color:#1f5d2a}
+  .qchoice.right .qdot{background:#5fa84a}
+  .qchoice.wrong{background:#f5d6cd;border-color:#c0432a;color:#7a1f12}
+  .qchoice.wrong .qdot{background:#c0432a}
+  .qfeedback{font-family:'Spectral',serif;font-size:.88rem;line-height:1.5;color:#5c4a30;
+    min-height:1rem;margin-bottom:.5rem}
+  .qnext{display:none;font-family:'Marcellus',serif;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+    padding:.55rem .9rem;border-radius:30px;cursor:pointer;color:#fff;background:var(--gold);border:none;
+    width:100%;transition:.18s}
+  .qnext.show{display:block} .qnext:hover{filter:brightness(1.08)}
+
+  /* the special "locate it" mode hides choices and lets the user click the map */
+  .quiz-card.locate-mode .qchoices{display:none}
+  .quiz-card.locate-mode .qfeedback{min-height:2.5rem}
+
+  /* typing question mode */
+  .qtype-wrap{display:flex;flex-direction:column;gap:.45rem}
+  .qtype-input{font-family:'Spectral',serif;font-size:.95rem;color:#2a1c10;
+    padding:.6rem .9rem;border-radius:10px;background:rgba(255,255,255,.85);
+    border:1px solid rgba(169,112,26,.32);transition:.18s;outline:none}
+  .qtype-input::placeholder{color:#a99878;font-style:italic}
+  .qtype-input:focus{border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(169,112,26,.18)}
+  .qtype-input.input-right{background:#dbf0d3;border-color:#5fa84a;color:#1f5d2a}
+  .qtype-input.input-wrong{background:#f5d6cd;border-color:#c0432a;color:#7a1f12}
+  .qtype-input:disabled{cursor:default}
+  .qcheck-btn{font-family:'Marcellus',serif;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+    padding:.55rem .9rem;border-radius:30px;cursor:pointer;color:#fff;background:var(--gold);border:none;
+    margin-top:.15rem;transition:.18s}
+  .qcheck-btn:hover:not(:disabled){filter:brightness(1.08)}
+  .qcheck-btn:disabled{opacity:.5;cursor:default}
+
+  /* shake/celebrate for map clicks during a locate question */
+  @keyframes qshake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,0)}75%{transform:translate(4px,0)}}
+  .quiz-card.shake{animation:qshake .35s ease}
+
   /* filter chips */
   .controls{position:fixed;top:4.2rem;right:1.5rem;z-index:10;display:flex;flex-direction:column;
     gap:.4rem;align-items:flex-end;max-width:46vw}
@@ -189,6 +258,12 @@
     /* Music: compact bottom-left */
     .music-btn{bottom:.7rem;left:.7rem;font-size:.58rem;padding:.4rem .7rem}
     .music-btn .lbl{display:none}
+    /* quiz on mobile */
+    .quiz-btn{bottom:calc(.7rem + env(safe-area-inset-bottom,0));right:calc(.7rem + env(safe-area-inset-right,0));font-size:.58rem;padding:.42rem .7rem;gap:.4rem}
+    .quiz-btn .qlbl{display:none}
+    .quiz-btn .qscore{font-size:.62rem;padding:.05rem .42rem}
+    .quiz-card{bottom:3.6rem;right:.6rem;left:.6rem;width:auto;max-width:none;padding:.9rem .9rem 1rem}
+    .qtitle{font-size:1.1rem} .qprompt{font-size:1.02rem} .qchoice{font-size:.86rem;padding:.55rem .8rem}
 
     /* Panel: full screen, comfortable padding, room for nav */
     .panel{width:100%;padding:1.6rem 1.3rem 2rem}
@@ -239,6 +314,30 @@
 </div>
 <div class="hint">Drag to <b>orbit</b> · scroll to <b>zoom</b> · tap a <b>beacon</b> or <b>river</b></div>
 <button class="music-btn" id="musicBtn" aria-label="Toggle music"><span class="ico">♪</span><span class="lbl">Music on</span></button>
+
+<!-- Quiz button + card -->
+<button class="quiz-btn" id="quizBtn" aria-label="Open quiz">
+  <span class="qico">?</span>
+  <span class="qlbl">Quiz</span>
+  <span class="qscore" id="quizScoreBadge">0</span>
+</button>
+<div class="quiz-card" id="quizCard" aria-hidden="true">
+  <div class="qhead">
+    <div class="qtitle">Tīrtha Quiz</div>
+    <div class="qmeta">
+      <span id="qStreak">Streak 0</span>
+      <span id="qScore">Score 0</span>
+    </div>
+    <button class="qclose" id="quizClose" aria-label="Close quiz">×</button>
+  </div>
+  <div class="qbody">
+    <div class="qprompt" id="qPrompt"></div>
+    <div class="qsubprompt" id="qSubPrompt"></div>
+    <div class="qchoices" id="qChoices"></div>
+    <div class="qfeedback" id="qFeedback"></div>
+    <button class="qnext" id="qNext">Next question →</button>
+  </div>
+</div>
 
 <canvas id="scene"></canvas>
 
@@ -291,10 +390,10 @@ const CATS = {
   other:   {label:"Great pilgrimage",    color:0x00e0c6, hex:"#00e0c6"}
 };
 const SITES = [
- {n:"Badrinath",u:0.4125,v:0.2396,c:"chardham",c2:"chota",deity:"Viṣṇu (Badrīnārāyaṇa)",region:"Uttarakhand",circuit:"Char Dhām · Chota Char Dhām",d:"The northernmost of the four great Char Dhām, perched at 3,133 m on the banks of the Alaknandā between the Nara and Nārāyaṇa peaks, in the shadow of Nīlkaṇṭha. Legend holds that Viṣṇu sat here in penance, exposed to the snows, until Lakṣmī took the form of a badari (jujube) tree to shelter him — giving the place its name. The black-stone Śālagrāma image of Badrīnārāyaṇa is said to have been installed by Ādi Śaṅkarācārya in the 8th century after he recovered it from the Alaknandā. The temple opens for only about six months a year; when it closes for winter, the lamp is left burning and worship is believed to continue by the gods themselves. Pilgrims bathe in the boiling Tapt Kund hot springs before darśan.",culture:"For millions of Hindus, reaching Badrinath at least once is a lifelong aspiration, the crown of the Char Dhām Yātrā. Whole families pool savings for years to make the journey together; the road from Rishikesh fills each summer with buses, pilgrims and wandering sādhus. The Garhwali hill communities along the route live by the pilgrim season, running tea-stalls, lodges, ponies and porter services, and the temple's rāwal (head priest) is traditionally a Namboodiri brahmin from far-off Kerala — a thread binding the Himālaya to the southern tip of India."},
- {n:"Kedarnath",u:0.40,v:0.2396,c:"chota",deity:"Śiva (Kedāreśvara)",region:"Uttarakhand",circuit:"Chota Char Dhām · Jyotirliṅga",d:"The highest of the twelve Jyotirliṅgas, at 3,583 m below the Kedarnath peak, reached by a steep 16 km trek from Gaurikund. Here Śiva is worshipped not as a carved liṅga but as a rough triangular rock — said to be the hump of the bull into which he transformed to escape the Pāṇḍavas, who sought him to absolve the sin of killing kin at Kurukṣetra. The present stone temple is attributed to Ādi Śaṅkara, built over an older shrine of the Pāṇḍava age. In 2013 catastrophic floods devastated the town, yet the temple itself survived, shielded by a great boulder that split the torrent — an event many read as divine protection.",culture:"Kedarnath embodies the Indian ideal of pilgrimage as hardship and devotion: the trek itself is the prayer. After the 2013 disaster the whole nation followed the rescue and rebuilding, and the shrine became a symbol of resilience. Local Garhwali porters, palanquin-bearers and pony-handlers depend on the season, and the doli (palanquin) procession that carries the deity down to its winter seat at Ukhimath each autumn is a beloved regional event lining the valley with villagers."},
- {n:"Gangotri",u:0.3961,v:0.2316,c:"chota",deity:"Goddess Gaṅgā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The shrine marking the celestial descent of the Gaṅgā, at 3,100 m on the Bhāgīrathī. The true glacial source, Gaumukh ('cow's mouth'), lies 18 km further upstream at the snout of the Gangotri glacier. The river is venerated as the goddess who poured from heaven to liberate the ashes of King Bhagīratha's ancestors — her world-shattering fall broken by Śiva, who caught her in his matted locks and released her gently to earth. The white temple was built by the Gorkha general Amar Singh Thapa in the early 18th century. Pilgrims carry Gangotri water across India to offer at distant Śiva shrines.",culture:"Gangotri anchors the cultural idea that the Gaṅgā is a living mother. Pilgrims fill sealed copper pots with her water to carry home for weddings, last rites and house blessings — a custom that links a remote glacier to kitchens across India. The Kānwar Yātrā each monsoon sees millions of saffron-clad young 'kānwariyas' walk barefoot to fetch this water, one of the largest annual foot-pilgrimages on Earth."},
- {n:"Yamunotri",u:0.382,v:0.2309,c:"chota",deity:"Goddess Yamunā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The westernmost gate of the Chota Char Dhām, at 3,293 m, dedicated to the goddess Yamunā — daughter of the sun Sūrya and sister of Yama, lord of death. Those who bathe in her waters are said to be spared a painful death. The actual source lies at the frozen Champāsar glacier and the Kālinda peak above. Around the shrine steam the Sūrya Kund hot springs, hot enough that pilgrims tie rice and potatoes in cloth and lower them in to cook a sanctified prasād. The temple was raised in the 19th century by the Maharani of Jaipur.",culture:"As the seat of the goddess who spares her devotees a fearful death, Yamunotri draws pilgrims seeking blessing for their families. The hot-spring cooking of rice and potato prasād is a shared ritual that strangers perform side by side, and the hardy Jaunpuri hill villagers who guide and carry pilgrims have built a livelihood and identity around the route over generations."},
+ {n:"Badrinath",u:0.430,v:0.245,c:"chardham",c2:"chota",deity:"Viṣṇu (Badrīnārāyaṇa)",region:"Uttarakhand",circuit:"Char Dhām · Chota Char Dhām",d:"The northernmost of the four great Char Dhām, perched at 3,133 m on the banks of the Alaknandā between the Nara and Nārāyaṇa peaks, in the shadow of Nīlkaṇṭha. Legend holds that Viṣṇu sat here in penance, exposed to the snows, until Lakṣmī took the form of a badari (jujube) tree to shelter him — giving the place its name. The black-stone Śālagrāma image of Badrīnārāyaṇa is said to have been installed by Ādi Śaṅkarācārya in the 8th century after he recovered it from the Alaknandā. The temple opens for only about six months a year; when it closes for winter, the lamp is left burning and worship is believed to continue by the gods themselves. Pilgrims bathe in the boiling Tapt Kund hot springs before darśan.",culture:"For millions of Hindus, reaching Badrinath at least once is a lifelong aspiration, the crown of the Char Dhām Yātrā. Whole families pool savings for years to make the journey together; the road from Rishikesh fills each summer with buses, pilgrims and wandering sādhus. The Garhwali hill communities along the route live by the pilgrim season, running tea-stalls, lodges, ponies and porter services, and the temple's rāwal (head priest) is traditionally a Namboodiri brahmin from far-off Kerala — a thread binding the Himālaya to the southern tip of India."},
+ {n:"Kedarnath",u:0.402,v:0.225,c:"chota",deity:"Śiva (Kedāreśvara)",region:"Uttarakhand",circuit:"Chota Char Dhām · Jyotirliṅga",d:"The highest of the twelve Jyotirliṅgas, at 3,583 m below the Kedarnath peak, reached by a steep 16 km trek from Gaurikund. Here Śiva is worshipped not as a carved liṅga but as a rough triangular rock — said to be the hump of the bull into which he transformed to escape the Pāṇḍavas, who sought him to absolve the sin of killing kin at Kurukṣetra. The present stone temple is attributed to Ādi Śaṅkara, built over an older shrine of the Pāṇḍava age. In 2013 catastrophic floods devastated the town, yet the temple itself survived, shielded by a great boulder that split the torrent — an event many read as divine protection.",culture:"Kedarnath embodies the Indian ideal of pilgrimage as hardship and devotion: the trek itself is the prayer. After the 2013 disaster the whole nation followed the rescue and rebuilding, and the shrine became a symbol of resilience. Local Garhwali porters, palanquin-bearers and pony-handlers depend on the season, and the doli (palanquin) procession that carries the deity down to its winter seat at Ukhimath each autumn is a beloved regional event lining the valley with villagers."},
+ {n:"Gangotri",u:0.370,v:0.240,c:"chota",deity:"Goddess Gaṅgā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The shrine marking the celestial descent of the Gaṅgā, at 3,100 m on the Bhāgīrathī. The true glacial source, Gaumukh ('cow's mouth'), lies 18 km further upstream at the snout of the Gangotri glacier. The river is venerated as the goddess who poured from heaven to liberate the ashes of King Bhagīratha's ancestors — her world-shattering fall broken by Śiva, who caught her in his matted locks and released her gently to earth. The white temple was built by the Gorkha general Amar Singh Thapa in the early 18th century. Pilgrims carry Gangotri water across India to offer at distant Śiva shrines.",culture:"Gangotri anchors the cultural idea that the Gaṅgā is a living mother. Pilgrims fill sealed copper pots with her water to carry home for weddings, last rites and house blessings — a custom that links a remote glacier to kitchens across India. The Kānwar Yātrā each monsoon sees millions of saffron-clad young 'kānwariyas' walk barefoot to fetch this water, one of the largest annual foot-pilgrimages on Earth."},
+ {n:"Yamunotri",u:0.340,v:0.222,c:"chota",deity:"Goddess Yamunā",region:"Uttarakhand",circuit:"Chota Char Dhām",d:"The westernmost gate of the Chota Char Dhām, at 3,293 m, dedicated to the goddess Yamunā — daughter of the sun Sūrya and sister of Yama, lord of death. Those who bathe in her waters are said to be spared a painful death. The actual source lies at the frozen Champāsar glacier and the Kālinda peak above. Around the shrine steam the Sūrya Kund hot springs, hot enough that pilgrims tie rice and potatoes in cloth and lower them in to cook a sanctified prasād. The temple was raised in the 19th century by the Maharani of Jaipur.",culture:"As the seat of the goddess who spares her devotees a fearful death, Yamunotri draws pilgrims seeking blessing for their families. The hot-spring cooking of rice and potato prasād is a shared ritual that strangers perform side by side, and the hardy Jaunpuri hill villagers who guide and carry pilgrims have built a livelihood and identity around the route over generations."},
  {n:"Dwarka",u:0.0945,v:0.5067,c:"chardham",deity:"Kṛṣṇa (Dvārakādhīśa)",region:"Gujarat",circuit:"Char Dhām · Sapta Purī",d:"The western Char Dhām and one of the seven ancient holy cities (Sapta Purī), on the Gujarat coast where the Gomtī meets the Arabian Sea. This was Kṛṣṇa's own capital — the golden city he raised after leading the Yādavas west from Mathurā, said in the epics to have been reclaimed by the sea after his departure from the world. The five-storey Dvārakādhīśa temple, its 78 m spire flying a great flag changed five times daily, rests on 72 pillars and is dated by tradition to Kṛṣṇa's great-grandson Vajranābha. Offshore lies Bet Dwarka, and nearby the Nageshvara Jyotirliṅga. Marine archaeology has found submerged structures in the bay.",culture:"Dwarka lives and breathes Kṛṣṇa. Janmāṣṭamī, his birthday, transforms the town into a sea of devotees, and the daily flag-changing atop the temple — sponsored by families who book years in advance as a sacred honour — draws crowds each time. As one of the Char Dhām and a Gujarati cultural icon, it shapes local fishing and pilgrim economies alike, and the offshore Bet Dwarka boat-crossing is a ritual outing for whole families."},
  {n:"Puri",u:0.6047,v:0.5837,c:"chardham",deity:"Jagannātha (Kṛṣṇa)",region:"Odisha",circuit:"Char Dhām",d:"The eastern Char Dhām on the Bay of Bengal, home of Lord Jagannātha — 'Lord of the Universe', a form of Kṛṣṇa — worshipped with his brother Balabhadra and sister Subhadrā as wide-eyed wooden images, uniquely carved and ritually replaced every twelve to nineteen years. The towering 12th-century temple, built by the Ganga dynasty, soars 65 m; its kitchen is among the largest in the world, feeding thousands daily. The annual Ratha Yātrā sees the three deities hauled through the streets on colossal chariots up to 13 m tall by hundreds of thousands of devotees — the spectacle that gave English the word 'juggernaut'.",culture:"Puri's Ratha Yātrā is one of the most powerful expressions of communal devotion anywhere: hundreds of thousands haul the deities' chariots by rope, a moment when caste barriers traditionally fall away and Jagannātha comes out to meet ordinary people in the street. The temple's mahāprasād, cooked in earthen pots and shared in the Ānanda Bāzār, is eaten by rich and poor as equals. Generations of Odia families serve as hereditary sevāyats, and the town's patachitra painters and chariot-carvers keep ancient crafts alive."},
  {n:"Rameswaram",u:0.4078,v:0.9143,c:"chardham",deity:"Śiva (Rāmanāthaswāmī)",region:"Tamil Nadu",circuit:"Char Dhām · Jyotirliṅga",d:"The southern Char Dhām and a Jyotirliṅga, on a conch-shaped island linked to the mainland by the Pamban bridge. Here Rāma is said to have worshipped Śiva to expiate the sin of killing Rāvaṇa, a brahmin — the liṅga shaped by Sītā from sand while Hanumān fetched a larger one from Kailāsa. From nearby Dhanushkodi stretches Rāma Setu, the chain of shoals toward Sri Lanka. The Rāmanāthaswāmī temple boasts the longest pillared corridor in India, over 1,200 m of sculpted granite. Pilgrims bathe in 22 sacred wells (tīrthas) within the temple, each drawn from a different source and each said to taste distinct.",culture:"Rameswaram binds north and south India through the Rāmāyaṇa: pilgrims complete their faith by bringing Gaṅgā water from Varanasi to pour here, then carry Rameswaram sand back north. Bathing in the temple's 22 wells, drenched bucket by bucket, is a joyous communal ritual. The town's fishing communities and the memory of former president A.P.J. Abdul Kalam, Rameswaram's most famous son, give it a layered identity beyond pilgrimage."},
@@ -323,47 +422,47 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth<640?1.5:2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.15;
+renderer.toneMappingExposure=1.32;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xbfe3f5);     // bright daytime sky
-scene.fog=new THREE.FogExp2(0xcfe9f7,0.0042);   // soft pale haze
+scene.background=new THREE.Color(0xd6efff);     // brighter daytime sky
+scene.fog=new THREE.FogExp2(0xdaf0fc,0.0018);   // much lighter haze — map reads clearly
 
 // Frame the whole map on any screen: pull back further when the viewport is
 // narrow/portrait (phones) so India fits comfortably in view.
 function computeHome(){
   const aspect=innerWidth/innerHeight;
   // narrower aspect -> need to be further away & higher
-  const dist = aspect<0.7 ? 215 : aspect<1.0 ? 175 : 135;
-  const high = aspect<0.7 ? 150 : aspect<1.0 ? 120 : 95;
+  const dist = aspect<0.7 ? 345 : aspect<1.0 ? 280 : 215;
+  const high = aspect<0.7 ? 240 : aspect<1.0 ? 190 : 150;
   return {pos:new THREE.Vector3(0,high,dist), tgt:new THREE.Vector3(0,8,0)};
 }
 let _home=computeHome();
 const HOME_POS=_home.pos.clone();
 const HOME_TGT=_home.tgt.clone();
-const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,2000);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,2400);
 camera.position.copy(HOME_POS);
 
 const controls=new OrbitControls(camera,canvas);
 controls.enableDamping=true; controls.dampingFactor=.08;
-controls.minDistance=45; controls.maxDistance=360;
+controls.minDistance=70; controls.maxDistance=560;
 controls.maxPolarAngle=Math.PI*0.49;
 controls.target.copy(HOME_TGT);
 
 /* ---------- terrain geometry ---------- */
 const ASPECT=GW/GH;
-const PLANE_W=140, PLANE_H=PLANE_W/ASPECT;
+const PLANE_W=220, PLANE_H=PLANE_W/ASPECT;
 const VSCALE=34;             // vertical exaggeration
 const geo=new THREE.PlaneGeometry(PLANE_W,PLANE_H,GW-1,GH-1);
 geo.rotateX(-Math.PI/2);     // lay flat (xz plane), y up
 
 const pos=geo.attributes.position;
 const colors=[];
-const cLow=new THREE.Color(0x7cb342);   // bright verdant lowland
-const cMid=new THREE.Color(0xc3a84e);   // warm golden hills
-const cHigh=new THREE.Color(0xa07a4e);  // light sandy highland
-const cSnow=new THREE.Color(0xfdfcf7);  // bright snow
-const cSea=new THREE.Color(0x3d7fb5);   // bright shallow sea
+const cLow=new THREE.Color(0x8fc94a);   // vivid spring green lowland
+const cMid=new THREE.Color(0xd6b94e);   // rich golden hills
+const cHigh=new THREE.Color(0xb98a52);  // warm sandy highland
+const cSnow=new THREE.Color(0xffffff);  // crisp snow
+const cSea=new THREE.Color(0x3f95d3);   // brighter, more saturated sea
 
 function bilinearElev(u,v){ // u,v in 0..1
   const fx=u*(GW-1), fy=v*(GH-1);
@@ -405,8 +504,8 @@ scene.add(terrain);
 /* animated ocean plane */
 const SEA_SIZE=1100, SEA_SEG=(innerWidth<640?64:96);
 const seaGeo=new THREE.PlaneGeometry(SEA_SIZE,SEA_SIZE,SEA_SEG,SEA_SEG);
-const seaMat=new THREE.MeshStandardMaterial({color:0x2f86c5,roughness:.35,metalness:.25,
-  transparent:true,opacity:.92,flatShading:false});
+const seaMat=new THREE.MeshStandardMaterial({color:0x3aa1e2,roughness:.35,metalness:.25,
+  transparent:true,opacity:.94,flatShading:false});
 const sea=new THREE.Mesh(seaGeo,seaMat);
 sea.rotation.x=-Math.PI/2; sea.position.y=-2.6; scene.add(sea);
 // store base XY (in-plane) positions for wave calc; Z is the wave height (becomes world Y after rotation)
@@ -565,52 +664,81 @@ function worldFromUV(u,v){
   return new THREE.Vector3(x,y,z);
 }
 
+// For beacons / river anchors: if the requested cell is sea (heightmap is
+// discretized at 160x187, so coastal sites can land in a "sea" cell), search
+// nearby cells for land. Returns {u,v,e} — the nearest-land UV and its elevation.
+function nearestLandUV(u,v){
+  const ix=Math.round(u*(GW-1)), iy=Math.round(v*(GH-1));
+  if(ix>=0&&iy>=0&&ix<GW&&iy<GH && landAt(ix,iy)) return {u,v,e:elevAt(ix,iy)};
+  // spiral outwards looking for the nearest land cell
+  for(let r=1;r<=8;r++){
+    let best=null, bestD=1e9;
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+      if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;     // ring of radius r
+      const nx=ix+dx, ny=iy+dy;
+      if(nx<0||ny<0||nx>=GW||ny>=GH) continue;
+      if(!landAt(nx,ny)) continue;
+      const d=dx*dx+dy*dy;
+      if(d<bestD){ bestD=d; best={u:nx/(GW-1), v:ny/(GH-1), e:elevAt(nx,ny)}; }
+    }
+    if(best) return best;
+  }
+  return {u,v,e:0.02};
+}
+function worldFromUVLand(u,v){
+  const L=nearestLandUV(u,v);
+  const x=(L.u-0.5)*PLANE_W;
+  const z=(L.v-0.5)*PLANE_H;
+  const y=L.e*VSCALE;
+  return new THREE.Vector3(x,Math.max(y,0.5),z);
+}
+
 /* ---------- markers ---------- */
 const markerGroup=new THREE.Group(); scene.add(markerGroup);
 const beacons=[];
 const SCALE_BEAM=1;
 SITES.forEach((s,idx)=>{
   const cat=CATS[s.c]; const color=new THREE.Color(cat.color);
-  const base=worldFromUV(s.u,s.v);
+  const base=worldFromUVLand(s.u,s.v);
   const g=new THREE.Group(); g.position.copy(base);
 
   // glowing beam
-  const beamH=15+ (base.y>20?9:0);
+  const beamH=11+ (base.y>20?7:0);
   const beam=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32,0.85,beamH,8,1,true),
+    new THREE.CylinderGeometry(0.22,0.6,beamH,8,1,true),
     new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.6,side:THREE.DoubleSide,depthWrite:false})
   );
   beam.position.y=beamH/2; g.add(beam);
 
   // white outline shell (renders behind, slightly larger, back faces only)
   const shell=new THREE.Mesh(
-    new THREE.OctahedronGeometry(2.85,0),
+    new THREE.OctahedronGeometry(2.0,0),
     new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.BackSide})
   );
-  shell.position.y=beamH+2.4; g.add(shell);
+  shell.position.y=beamH+1.8; g.add(shell);
 
   // floating jewel — fully self-lit so its hue stays vivid against any terrain
   const jewel=new THREE.Mesh(
-    new THREE.OctahedronGeometry(2.5,0),
+    new THREE.OctahedronGeometry(1.75,0),
     new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.0,roughness:.25,metalness:.3})
   );
-  jewel.position.y=beamH+2.4; g.add(jewel);
+  jewel.position.y=beamH+1.8; g.add(jewel);
 
   // halo ring
   const ring=new THREE.Mesh(
-    new THREE.RingGeometry(3.2,4.1,28),
+    new THREE.RingGeometry(2.2,2.9,28),
     new THREE.MeshBasicMaterial({color,transparent:true,opacity:.45,side:THREE.DoubleSide,depthWrite:false})
   );
   ring.rotation.x=-Math.PI/2; ring.position.y=0.4; g.add(ring);
 
   // base disc on ground with thin white rim for contrast
   const disc=new THREE.Mesh(
-    new THREE.CircleGeometry(1.5,24),
+    new THREE.CircleGeometry(1.05,24),
     new THREE.MeshBasicMaterial({color,transparent:true,opacity:.95})
   );
   disc.rotation.x=-Math.PI/2; disc.position.y=0.15; g.add(disc);
   const discRim=new THREE.Mesh(
-    new THREE.RingGeometry(1.5,1.85,24),
+    new THREE.RingGeometry(1.05,1.3,24),
     new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85,side:THREE.DoubleSide})
   );
   discRim.rotation.x=-Math.PI/2; discRim.position.y=0.16; g.add(discRim);
@@ -618,8 +746,18 @@ SITES.forEach((s,idx)=>{
   jewel.userData={idx,jewel:true};
   g.userData={idx,baseY:jewel.position.y,beamH};
   markerGroup.add(g);
-  beacons.push({g,jewel,shell,beam,ring,cat:s.c,cat2:s.c2||null,color});
+  beacons.push({g,jewel,shell,beam,ring,disc,cat:s.c,cat2:s.c2||null,color,baseColor:color.clone()});
 });
+
+// Update a beacon's color in-place (used for dual-category sites like Badrinath)
+function setBeaconColor(b, hex){
+  const c=new THREE.Color(hex);
+  b.color.copy(c);
+  b.jewel.material.color.copy(c); b.jewel.material.emissive.copy(c);
+  b.beam.material.color.copy(c);
+  b.ring.material.color.copy(c);
+  b.disc.material.color.copy(c);
+}
 
 /* ---------- sacred rivers ---------- */
 const RIVERS = [
@@ -791,7 +929,7 @@ function flyTo(idx){
   flyTgtFrom.copy(controls.target); flyTgtTo.copy(w).add(new THREE.Vector3(0,6,0));
   flyFrom.copy(camera.position);
   const dir=new THREE.Vector3(0.2,0.7,0.8).normalize();
-  flyTo_.copy(w).add(dir.multiplyScalar(60));
+  flyTo_.copy(w).add(dir.multiplyScalar(95));
   flyT=0;
 }
 function flyToRiver(ri){
@@ -800,7 +938,7 @@ function flyToRiver(ri){
   flyTgtFrom.copy(controls.target); flyTgtTo.copy(mid).add(new THREE.Vector3(0,4,0));
   flyFrom.copy(camera.position);
   const dir=new THREE.Vector3(0.15,0.8,0.7).normalize();
-  flyTo_.copy(mid).add(dir.multiplyScalar(90));
+  flyTo_.copy(mid).add(dir.multiplyScalar(140));
   flyT=0;
 }
 function flyHome(){
@@ -823,6 +961,14 @@ function mkChip(cat,label,hex,active){
 }
 function setFilter(cat,el){
   [...controlsEl.children].forEach(c=>c.classList.remove('active')); el.classList.add('active');
+  // for dual-category beacons, paint them in whichever circuit is currently being viewed
+  beacons.forEach((b,i)=>{
+    const ss=SITES[i];
+    if(ss.c2){
+      const want = (CATS[cat] && siteInCat(ss,cat)) ? CATS[cat].color : CATS[ss.c].color;
+      setBeaconColor(b, want);
+    }
+  });
   const riversOnly=(cat==='rivers');
   beacons.forEach(b=>{ b.g.visible = riversOnly?false:(cat==='all'||b.cat===cat||b.cat2===cat); });
   const showRivers=(cat==='all'||riversOnly);
@@ -913,6 +1059,15 @@ function openPanel(idx, catContext){
   const s=SITES[idx], cat=CATS[s.c];
   // which category circuit are we browsing within? (defaults to primary)
   const ctx = (catContext && siteInCat(s,catContext)) ? catContext : s.c;
+  // recolor dual-category beacons to match the circuit being viewed
+  // (e.g. Badrinath = red when seen as Char Dhām, orange when seen as Chota Char Dhām)
+  beacons.forEach((b,i)=>{
+    const ss=SITES[i];
+    if(ss.c2){
+      const want = siteInCat(ss,ctx) ? CATS[ctx].color : CATS[ss.c].color;
+      setBeaconColor(b, want);
+    }
+  });
   showOnlyCategory(ctx);          // show only beacons in this circuit
   updateNav('site',ctx,idx);
   const pc=document.getElementById('pCat'); const pillCat=CATS[ctx]; pc.textContent=pillCat.label;
@@ -986,7 +1141,12 @@ addEventListener('keydown',e=>{
 });
 
 function restoreAllVisible(){
-  beacons.forEach(b=>{ b.g.visible=true; });
+  beacons.forEach((b,i)=>{
+    b.g.visible=true;
+    // restore dual-category beacons to their primary color in the overview
+    const ss=SITES[i];
+    if(ss.c2) setBeaconColor(b, CATS[ss.c].color);
+  });
   riverObjs.forEach(o=>{ o.mesh.visible=true; o.glow.visible=true; o.core.visible=true; o.bead.visible=true; o.bcns.forEach(b=>b.bg.visible=true); });
   const allChipEl=[...controlsEl.children].find(c=>c.dataset.cat==='all');
   [...controlsEl.children].forEach(c=>c.classList.toggle('active', c===allChipEl));
@@ -1245,6 +1405,399 @@ musicBtn.addEventListener('click',(e)=>{
   updateMusicBtn();
 });
 updateMusicBtn();
+
+/* ============================================================
+   TĪRTHA QUIZ — interactive activity
+   Uses the same SITES / RIVERS / CATS data; adds no new dependencies.
+   ============================================================ */
+const Quiz=(()=>{
+  const card=document.getElementById('quizCard');
+  const btn=document.getElementById('quizBtn');
+  const closeBtn=document.getElementById('quizClose');
+  const promptEl=document.getElementById('qPrompt');
+  const subEl=document.getElementById('qSubPrompt');
+  const choicesEl=document.getElementById('qChoices');
+  const feedbackEl=document.getElementById('qFeedback');
+  const nextBtn=document.getElementById('qNext');
+  const scoreEl=document.getElementById('qScore');
+  const streakEl=document.getElementById('qStreak');
+  const scoreBadge=document.getElementById('quizScoreBadge');
+
+  let score=0, streak=0, bestStreak=0, current=null, locked=false, locateMode=false;
+  const askedRecently=[];   // avoid immediate repeats
+
+  function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+  function updateScore(){
+    scoreEl.textContent='Score '+score;
+    streakEl.textContent='Streak '+streak+(bestStreak>streak?' (best '+bestStreak+')':'');
+    scoreBadge.textContent=score;
+  }
+
+  /* ---------- VERY EASY questions (default pool) ---------- */
+  // a small bank of plain-English True/False and "pick the right one" questions
+  const EASY_TF=[
+    {q:"India has mountains called the Himalayas.", a:true,  why:"Yes! The Himalayas are the world's tallest mountain range, in the north of India."},
+    {q:"The Ganga is a famous river of India.",      a:true,  why:"Yes! The Ganga is the most sacred river in India."},
+    {q:"Mount Everest is in South India.",           a:false, why:"No — the Himalayan peaks are in the NORTH, not the south."},
+    {q:"Kanyakumari is at the very southern tip of India.", a:true, why:"Yes! It is the southernmost point of the Indian mainland."},
+    {q:"Badrinath is one of the four Char Dham.",    a:true,  why:"Yes! The four Char Dham are Badrinath, Dwarka, Puri, and Rameswaram."},
+    {q:"Rivers in this map flow uphill.",            a:false, why:"No! Rivers always flow downhill, from the mountains to the sea."},
+    {q:"Varanasi is a holy city on the Ganga river.", a:true, why:"Yes! Varanasi (Kashi) sits right on the banks of the Ganga."},
+    {q:"The Bay of Bengal is to the WEST of India.", a:false, why:"No — the Bay of Bengal is to the EAST. The Arabian Sea is to the west."},
+    {q:"There are 4 places in the Char Dham circuit.", a:true, why:"Yes — char means 'four' in Hindi."},
+    {q:"Krishna was born in Mathura.",               a:true,  why:"Yes! Lord Krishna's birthplace is Mathura."},
+    {q:"Lord Rama was born in Ayodhya.",             a:true,  why:"Yes! Ayodhya is the birthplace of Lord Rama."},
+    {q:"The Ganga flows into the Arabian Sea.",      a:false, why:"No — the Ganga flows into the Bay of Bengal in the east."},
+    {q:"Dwarka was the city of Lord Krishna.",       a:true,  why:"Yes! Krishna ruled from his golden city Dwarka by the sea."},
+    {q:"India is surrounded by ocean on three sides.", a:true, why:"Yes! Arabian Sea on the west, Bay of Bengal on the east, Indian Ocean to the south."},
+    {q:"Snow falls on the Himalayan peaks.",         a:true,  why:"Yes! The high Himalayan peaks are covered in snow."},
+  ];
+  function qTrueFalse(){
+    const q=EASY_TF[Math.floor(Math.random()*EASY_TF.length)];
+    const opts=[
+      {label:"✓  True",  isRight:q.a===true},
+      {label:"✗  False", isRight:q.a===false},
+    ];
+    return {
+      kind:'tf', prompt:q.q, sub:'True or False?',
+      correctSiteIdx:null, highlightIdx:null,
+      choices: opts,
+      explain: q.why
+    };
+  }
+
+  // Easy "which is...?" with 3 options, plain words
+  const EASY_PICK=[
+    {q:"Which one is a RIVER?",       right:"Ganga",      wrong:["Himalayas","Badrinath"], why:"The Ganga is a river. Himalayas are mountains, Badrinath is a temple."},
+    {q:"Which one is a MOUNTAIN?",    right:"Himalayas",  wrong:["Ganga","Puri"],          why:"The Himalayas are mountains. Ganga is a river, Puri is a city."},
+    {q:"Which one is a TEMPLE TOWN?", right:"Badrinath",  wrong:["Ganga","Yamuna"],        why:"Badrinath is a temple town. Ganga and Yamuna are rivers."},
+    {q:"Which colour is the SKY in this map?", right:"Blue", wrong:["Red","Green"], why:"The sky is blue, like a sunny day."},
+    {q:"How many Char Dham are there?",        right:"4",    wrong:["2","7"],         why:"Four! 'Char' means four in Hindi."},
+    {q:"Which animal flies in the sky in this map?", right:"Birds", wrong:["Fish","Elephants"], why:"Birds — you can see seagulls flying over the ocean."},
+    {q:"Where does the Ganga river start?",    right:"In the Himalayas", wrong:["In the desert","In the ocean"], why:"The Ganga starts high up in the Himalayan mountains."},
+    {q:"Which one lives in the ocean around India?", right:"Fish", wrong:["Camels","Tigers"], why:"Fish live in the ocean. Camels and tigers live on land."},
+    {q:"What do people do at a holy river?",   right:"Take a holy bath", wrong:["Play football","Build houses"], why:"People take holy baths in sacred rivers like the Ganga."},
+    {q:"Which is the tallest mountain range?", right:"Himalayas", wrong:["Western Ghats","Aravalli"], why:"The Himalayas are the tallest mountains in the world."},
+  ];
+  function qEasyPick(){
+    const e=EASY_PICK[Math.floor(Math.random()*EASY_PICK.length)];
+    const opts=shuffle([
+      {label:e.right, isRight:true},
+      {label:e.wrong[0], isRight:false},
+      {label:e.wrong[1], isRight:false}
+    ]);
+    return {
+      kind:'easy', prompt:e.q, sub:'Pick the right answer!',
+      correctSiteIdx:null, highlightIdx:null,
+      choices: opts,
+      explain: e.why
+    };
+  }
+
+  /* ---------- specific featured questions ---------- */
+  function qCharDham(){
+    const correct="Badrinath, Dwarka, Puri, Rameswaram";
+    const wrong=[
+      "Yamunotri, Gangotri, Kedarnath, Haridwar",     // these are Chota Char Dham / nearby
+      "Varanasi, Ayodhya, Mathura, Dwarka",            // mix of holy cities (Sapta Puri)
+      "Tirupati, Madurai, Rameswaram, Kanyakumari"     // all in South India
+    ];
+    const opts=shuffle([
+      {label:correct, isRight:true},
+      ...wrong.map(w=>({label:w,isRight:false}))
+    ]);
+    return {
+      kind:'chardham', prompt:`What are the four Char Dhām of India?`,
+      sub:`Pick the set that names all four.`,
+      correctSiteIdx:null, highlightIdx:null,
+      choices: opts,
+      explain:`The four Char Dhām are Badrinath (north), Dwarka (west), Puri (east), and Rameswaram (south) — one at each corner of India.`
+    };
+  }
+
+  // Free-text typing question: name any two sacred rivers (case-insensitive).
+  // Accept any two distinct rivers from the list.
+  function qNameTwoRivers(){
+    const accept=[
+      ["ganga","gaṅgā","ganges"],
+      ["yamuna","yamunā","jamuna"],
+      ["sarasvati","saraswati","sarasvatī"],
+      ["brahmaputra"],
+      ["narmada","narmadā"],
+      ["godavari","godāvarī"],
+      ["krishna","kṛṣṇā","krishnā","krsna"],
+      ["kaveri","kāverī","cauvery"]
+    ];
+    return {
+      kind:'type-rivers',
+      prompt:`Name any TWO sacred rivers of India.`,
+      sub:`Type two river names — either UPPERCASE or lowercase is fine.`,
+      correctSiteIdx:null, highlightIdx:null,
+      typing:true, accept:accept, needCount:2,
+      explain:`The sacred rivers in this map are Ganga, Yamuna, Sarasvati, Brahmaputra, Narmada, Godavari, Krishna, and Kaveri.`
+    };
+  }
+
+  /* ---------- question generators ---------- */
+  // Each returns {kind, prompt, sub, correctIdx, correctSiteIdx|null, choices:[{label, isRight}], explain}
+  function qIdentify(){
+    const i=Math.floor(Math.random()*SITES.length);
+    const s=SITES[i]; const cat=CATS[s.c];
+    // distractors: prefer same category, then any
+    const same=SITES.map((_,k)=>k).filter(k=>k!==i&&SITES[k].c===s.c);
+    const others=SITES.map((_,k)=>k).filter(k=>k!==i&&SITES[k].c!==s.c);
+    const distract=shuffle(same).slice(0,2).concat(shuffle(others).slice(0,2)).slice(0,3);
+    const opts=shuffle([i,...distract]);
+    return {
+      kind:'identify', prompt:`Which sacred place is this?`,
+      sub:`Presiding deity: ${s.deity} · ${s.region}`,
+      correctSiteIdx:i, highlightIdx:i,
+      choices: opts.map(k=>({label:SITES[k].n, isRight:k===i})),
+      explain:`${s.n} — ${cat.label} in ${s.region}.`
+    };
+  }
+  function qCategory(){
+    const i=Math.floor(Math.random()*SITES.length);
+    const s=SITES[i];
+    // build choices from category labels
+    const keys=Object.keys(CATS);
+    const opts=shuffle([s.c,...shuffle(keys.filter(k=>k!==s.c)).slice(0,3)]);
+    return {
+      kind:'category', prompt:`To which circuit does ${s.n} belong?`,
+      sub:s.c2?'(this place belongs to more than one circuit — pick its primary)':'',
+      correctSiteIdx:i, highlightIdx:null,    // don't highlight — its color would give it away
+      choices: opts.map(k=>({label:CATS[k].label, isRight:k===s.c})),
+      explain:`${s.n} is part of the ${CATS[s.c].label}${s.c2?' (and also '+CATS[s.c2].label+')':''}.`
+    };
+  }
+  function qLocate(){
+    const i=Math.floor(Math.random()*SITES.length);
+    const s=SITES[i];
+    return {
+      kind:'locate', prompt:`Find ${s.n} on the map`,
+      sub:`Tap its glowing beacon. Hint: ${s.region}.`,
+      correctSiteIdx:i, highlightIdx:null,    // do NOT highlight — that would give it away
+      choices:null,
+      explain:`Well done — ${s.n} sits in ${s.region}.`
+    };
+  }
+  function qRiverSource(){
+    const ri=Math.floor(Math.random()*RIVERS.length);
+    const r=RIVERS[ri];
+    const sourceBeacon=(r.beacons||[]).find(b=>b.t==='source');
+    if(!sourceBeacon) return qIdentify();   // fallback
+    const correctLabel=sourceBeacon.label.replace(/^Source · /,'').replace(/^Enters India · /,'');
+    // distractors: other rivers' source labels
+    const otherSources=RIVERS.filter((_,k)=>k!==ri).map(rr=>{
+      const sb=(rr.beacons||[]).find(b=>b.t==='source'); return sb?sb.label.replace(/^Source · /,'').replace(/^Enters India · /,''):null;
+    }).filter(Boolean).filter(s=>s!==correctLabel);
+    // dedupe
+    const uniqOthers=[...new Set(otherSources)];
+    const opts=shuffle([correctLabel,...shuffle(uniqOthers).slice(0,3)]);
+    return {
+      kind:'river-source', prompt:`Where does the ${r.name} begin?`,
+      sub:`Find its source / origin.`,
+      correctSiteIdx:null, highlightIdx:null,
+      choices: opts.map(o=>({label:o, isRight:o===correctLabel})),
+      explain:`The ${r.name} rises at ${correctLabel}.`
+    };
+  }
+  function qDeity(){
+    const i=Math.floor(Math.random()*SITES.length);
+    const s=SITES[i];
+    // collect distinct deity strings other than this one's
+    const seen=new Set([s.deity]);
+    const distinct=[];
+    SITES.forEach((o,k)=>{ if(k!==i && !seen.has(o.deity)){ seen.add(o.deity); distinct.push(o.deity); }});
+    const opts=shuffle([s.deity, ...shuffle(distinct).slice(0,3)]);
+    return {
+      kind:'deity', prompt:`Who is the presiding deity at ${s.n}?`,
+      sub:`${s.region}`,
+      correctSiteIdx:i, highlightIdx:i,
+      choices: opts.map(o=>({label:o, isRight:o===s.deity})),
+      explain:`${s.n} is dedicated to ${s.deity}.`
+    };
+  }
+
+  // ONLY two questions: Char Dhām MCQ and "name two rivers" typing. Alternating.
+  const GENERATORS=[qCharDham, qNameTwoRivers];
+  let qIndex=0;
+  function pickQuestion(){
+    const q=GENERATORS[qIndex % GENERATORS.length]();
+    qIndex++;
+    return q;
+  }
+
+  /* ---------- rendering ---------- */
+  function render(q){
+    current=q; locked=false; locateMode=(q.kind==='locate');
+    card.classList.toggle('locate-mode', locateMode);
+    promptEl.textContent=q.prompt;
+    subEl.textContent=q.sub||'';
+    feedbackEl.textContent='';
+    feedbackEl.style.color='';
+    nextBtn.classList.remove('show');
+    choicesEl.innerHTML='';
+    if(q.typing){
+      // free-text typing mode: build N input boxes and a Check button
+      const n=q.needCount||2;
+      const wrap=document.createElement('div'); wrap.className='qtype-wrap';
+      const inputs=[];
+      for(let i=0;i<n;i++){
+        const inp=document.createElement('input');
+        inp.type='text'; inp.className='qtype-input';
+        inp.placeholder='River #'+(i+1);
+        inp.autocomplete='off'; inp.autocapitalize='none'; inp.spellcheck=false;
+        wrap.appendChild(inp); inputs.push(inp);
+      }
+      const checkBtn=document.createElement('button'); checkBtn.className='qcheck-btn';
+      checkBtn.textContent='Check my answer';
+      checkBtn.addEventListener('click',()=>checkTyping(inputs));
+      wrap.appendChild(checkBtn);
+      choicesEl.appendChild(wrap);
+      // also allow Enter to submit
+      inputs.forEach(inp=>inp.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){ e.preventDefault(); checkTyping(inputs); }
+      }));
+      setTimeout(()=>inputs[0].focus(),50);
+    } else if(q.choices){
+      q.choices.forEach((ch,k)=>{
+        const el=document.createElement('button');
+        el.className='qchoice';
+        el.innerHTML=`<span class="qdot"></span>${ch.label}`;
+        el.addEventListener('click',()=>answerChoice(k,el));
+        choicesEl.appendChild(el);
+      });
+    } else if(locateMode){
+      feedbackEl.textContent='Look at the map and tap the right beacon →';
+      feedbackEl.style.color='#7a5a1a';
+    }
+    // for identify/category/deity, gently spotlight the target so the user knows what to read
+    if(q.highlightIdx!=null){
+      setActive('site', q.highlightIdx);
+    } else if(locateMode){
+      clearActive();
+    }
+  }
+
+  // Check a typed-rivers answer. Accept either case; ignore extra spaces.
+  function checkTyping(inputs){
+    if(locked) return;
+    const accept=current.accept; // array of arrays of acceptable variants
+    const matchedGroups=new Set();
+    const userTokens=inputs.map(inp=>inp.value.trim().toLowerCase()).filter(Boolean);
+    userTokens.forEach(tok=>{
+      // strip diacritics for matching
+      const norm=tok.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      accept.forEach((variants,gi)=>{
+        if(matchedGroups.has(gi)) return;
+        const hit=variants.some(v=>{
+          const vn=v.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          return norm===vn;
+        });
+        if(hit) matchedGroups.add(gi);
+      });
+    });
+    locked=true;
+    inputs.forEach(inp=>inp.disabled=true);
+    document.querySelector('.qcheck-btn').disabled=true;
+    if(matchedGroups.size>=(current.needCount||2)){
+      markCorrect();
+      inputs.forEach(inp=>inp.classList.add('input-right'));
+      feedbackEl.textContent='✓ '+current.explain;
+      feedbackEl.style.color='#1f5d2a';
+    } else if(matchedGroups.size>0){
+      // partial credit feedback (still wrong overall)
+      markWrong();
+      inputs.forEach(inp=>{
+        const n=inp.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        const ok=accept.some(g=>g.some(v=>v.normalize('NFD').replace(/[\u0300-\u036f]/g,'')===n));
+        inp.classList.add(ok?'input-right':'input-wrong');
+      });
+      feedbackEl.textContent='You got '+matchedGroups.size+' right but needed '+(current.needCount||2)+'. '+current.explain;
+      feedbackEl.style.color='#7a1f12';
+    } else {
+      markWrong();
+      inputs.forEach(inp=>inp.classList.add('input-wrong'));
+      feedbackEl.textContent='Not quite. '+current.explain;
+      feedbackEl.style.color='#7a1f12';
+    }
+    nextBtn.classList.add('show');
+  }
+
+  function answerChoice(k,el){
+    if(locked) return; locked=true;
+    const ch=current.choices[k];
+    [...choicesEl.children].forEach(c=>c.classList.add('locked'));
+    if(ch.isRight){ el.classList.add('right'); markCorrect(); }
+    else {
+      el.classList.add('wrong');
+      // also reveal the right one
+      [...choicesEl.children].forEach((c,i)=>{ if(current.choices[i].isRight) c.classList.add('right'); });
+      markWrong();
+    }
+    feedbackEl.textContent=current.explain;
+    feedbackEl.style.color = ch.isRight ? '#1f5d2a' : '#7a1f12';
+    nextBtn.classList.add('show');
+  }
+
+  // for "locate" mode: called from the canvas click handler
+  function tryLocate(idx){
+    if(!current || current.kind!=='locate' || locked) return false;
+    locked=true;
+    if(idx===current.correctSiteIdx){
+      markCorrect();
+      feedbackEl.textContent='✓ '+current.explain;
+      feedbackEl.style.color='#1f5d2a';
+    } else {
+      markWrong();
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+      feedbackEl.textContent='Not quite — that was '+SITES[idx].n+'. The answer was '+SITES[current.correctSiteIdx].n+'.';
+      feedbackEl.style.color='#7a1f12';
+    }
+    nextBtn.classList.add('show');
+    return true;
+  }
+
+  function markCorrect(){ score++; streak++; if(streak>bestStreak) bestStreak=streak; updateScore(); }
+  function markWrong(){ streak=0; updateScore(); }
+
+  function next(){ render(pickQuestion()); }
+
+  function open(){ card.classList.add('open'); card.setAttribute('aria-hidden','false'); if(!current) next(); }
+  function close(){ card.classList.remove('open'); card.setAttribute('aria-hidden','true'); locked=true; locateMode=false; card.classList.remove('locate-mode'); clearActive(); }
+
+  btn.addEventListener('click',e=>{e.stopPropagation(); card.classList.contains('open')?close():open();});
+  closeBtn.addEventListener('click',e=>{e.stopPropagation(); close();});
+  nextBtn.addEventListener('click',e=>{e.stopPropagation(); next();});
+
+  updateScore();
+  return {open, close, tryLocate, isLocate:()=>locateMode&&!locked};
+})();
+
+// Hook into beacon clicks: when the quiz is in "locate" mode, route the next
+// map click to the quiz instead of opening the normal info panel. We do this
+// with a capturing-phase listener so it runs before the existing canvas handler.
+(function installQuizLocateInterceptor(){
+  const cv=document.getElementById('scene');
+  let downAt=null;
+  cv.addEventListener('pointerdown',e=>{ if(Quiz.isLocate()) downAt=[e.clientX,e.clientY]; },true);
+  cv.addEventListener('pointerup',e=>{
+    if(!Quiz.isLocate()||!downAt) return;
+    const moved=Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1]); downAt=null;
+    if(moved>6) return;   // ignore drags
+    // raycast against visible beacons using the same machinery as pickJewel
+    const r=cv.getBoundingClientRect();
+    const nv=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+    const rc=new THREE.Raycaster(); rc.setFromCamera(nv,camera);
+    const hits=rc.intersectObjects(beacons.filter(b=>b.g.visible).map(b=>b.jewel),false);
+    if(hits.length){
+      Quiz.tryLocate(hits[0].object.userData.idx);
+      e.stopPropagation(); e.preventDefault();   // prevent the normal openPanel
+    }
+  },true);
+})();
 
 </script>
 </body>
