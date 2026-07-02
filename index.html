@@ -170,6 +170,17 @@
   /* shake/celebrate for map clicks during a locate question */
   @keyframes qshake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,0)}75%{transform:translate(4px,0)}}
   .quiz-card.shake{animation:qshake .35s ease}
+  .quiz-card.celebrate{animation:qcelebrate 5s ease}
+  @keyframes qcelebrate{
+    0%{box-shadow:0 0 0 0 rgba(255,180,40,.0)}
+    8%{box-shadow:0 0 34px 10px rgba(255,180,40,.65); transform:scale(1.03)}
+    16%{transform:scale(1.0)}
+    30%{box-shadow:0 0 26px 8px rgba(255,120,26,.5); transform:scale(1.02)}
+    45%{transform:scale(1.0)}
+    60%{box-shadow:0 0 30px 9px rgba(255,200,60,.55); transform:scale(1.02)}
+    80%{box-shadow:0 0 18px 5px rgba(255,160,40,.35); transform:scale(1.0)}
+    100%{box-shadow:0 0 0 0 rgba(255,180,40,0)}
+  }
 
   /* filter chips */
   .controls{position:fixed;top:4.2rem;right:1.5rem;z-index:10;display:flex;flex-direction:column;
@@ -1500,6 +1511,81 @@ const Quiz=(()=>{
   const scoreBadge=document.getElementById('quizScoreBadge');
 
   let score=0, streak=0, bestStreak=0, current=null, locked=false, locateMode=false;
+  let answeredCount=0, correctThisRun=0, runFinished=false;
+
+  /* 5-second celebration fanfare, synthesized with WebAudio (no files needed) */
+  function playCelebration(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC();
+      const master = ctx.createGain();
+      master.gain.value = 0.22;
+      master.connect(ctx.destination);
+      const t0 = ctx.currentTime + 0.05;
+      // Cheerful rising fanfare: C-E-G-C arpeggios repeated with harmony, ~5s total
+      const seq = [
+        // [timeOffset, freq, dur]
+        [0.00, 523.25, .22],[0.18, 659.25, .22],[0.36, 783.99, .22],[0.54, 1046.5, .40],
+        [1.00, 523.25, .18],[1.15, 659.25, .18],[1.30, 783.99, .18],[1.45, 1046.5, .35],
+        [1.90, 783.99, .22],[2.10, 987.77, .22],[2.30, 1174.66, .45],
+        [2.90, 1046.5, .30],[3.15, 1318.5, .30],[3.40, 1567.98, .55],
+        [4.10, 1046.5, .25],[4.30, 1318.5, .25],[4.50, 1567.98, .28],[4.65, 2093.0, .55],
+      ];
+      seq.forEach(([dt, f, dur])=>{
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'triangle';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0+dt);
+        g.gain.exponentialRampToValueAtTime(0.9, t0+dt+0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0+dt+dur);
+        o.connect(g); g.connect(master);
+        o.start(t0+dt); o.stop(t0+dt+dur+0.05);
+        // soft harmony a major third below
+        const o2 = ctx.createOscillator();
+        const g2 = ctx.createGain();
+        o2.type = 'sine';
+        o2.frequency.value = f * 0.7937;   // major third below
+        g2.gain.setValueAtTime(0.0001, t0+dt);
+        g2.gain.exponentialRampToValueAtTime(0.35, t0+dt+0.04);
+        g2.gain.exponentialRampToValueAtTime(0.0001, t0+dt+dur);
+        o2.connect(g2); g2.connect(master);
+        o2.start(t0+dt); o2.stop(t0+dt+dur+0.05);
+      });
+      // sparkle dings sprinkled through the 5 seconds
+      for(let i=0;i<10;i++){
+        const dt = 0.3 + i*0.47;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type='sine';
+        o.frequency.value = 2093 + Math.random()*1400;
+        g.gain.setValueAtTime(0.0001, t0+dt);
+        g.gain.exponentialRampToValueAtTime(0.25, t0+dt+0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0+dt+0.35);
+        o.connect(g); g.connect(master);
+        o.start(t0+dt); o.stop(t0+dt+0.45);
+      }
+      // close the context shortly after the 5s fanfare ends
+      setTimeout(()=>{ try{ctx.close();}catch(e){} }, 6000);
+    }catch(e){ /* audio not available — silently skip */ }
+  }
+
+  /* Called after every answered question: stops the quiz after the 2nd */
+  function afterAnswer(wasRight){
+    answeredCount++;
+    if(wasRight) correctThisRun++;
+    if(answeredCount>=2){
+      runFinished=true;
+      nextBtn.textContent='Play again ↻';
+      if(correctThisRun===2){
+        feedbackEl.textContent = '🎉 PERFECT! Both answers right! 🎉  ' + feedbackEl.textContent;
+        playCelebration();
+        card.classList.remove('celebrate'); void card.offsetWidth; card.classList.add('celebrate');
+      } else {
+        feedbackEl.textContent = 'Quiz over — you got '+correctThisRun+' of 2. ' + feedbackEl.textContent;
+      }
+    }
+  }
   const askedRecently=[];   // avoid immediate repeats
 
   function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
@@ -1799,6 +1885,7 @@ const Quiz=(()=>{
       feedbackEl.textContent='Not quite. '+current.explain;
       feedbackEl.style.color='#7a1f12';
     }
+    afterAnswer(matchedGroups.size>=(current.needCount||2));
     nextBtn.classList.add('show');
   }
 
@@ -1815,6 +1902,7 @@ const Quiz=(()=>{
     }
     feedbackEl.textContent=current.explain;
     feedbackEl.style.color = ch.isRight ? '#1f5d2a' : '#7a1f12';
+    afterAnswer(ch.isRight);
     nextBtn.classList.add('show');
   }
 
@@ -1832,6 +1920,7 @@ const Quiz=(()=>{
       feedbackEl.textContent='Not quite — that was '+SITES[idx].n+'. The answer was '+SITES[current.correctSiteIdx].n+'.';
       feedbackEl.style.color='#7a1f12';
     }
+    afterAnswer(idx===current.correctSiteIdx);
     nextBtn.classList.add('show');
     return true;
   }
@@ -1839,7 +1928,15 @@ const Quiz=(()=>{
   function markCorrect(){ score++; streak++; if(streak>bestStreak) bestStreak=streak; updateScore(); }
   function markWrong(){ streak=0; updateScore(); }
 
-  function next(){ render(pickQuestion()); }
+  function next(){
+    if(runFinished){
+      // reset for a fresh run of 2 questions
+      runFinished=false; answeredCount=0; correctThisRun=0; qIndex=0;
+      nextBtn.textContent='Next question →';
+      card.classList.remove('celebrate');
+    }
+    render(pickQuestion());
+  }
 
   function open(){ card.classList.add('open'); card.setAttribute('aria-hidden','false'); if(!current) next(); }
   function close(){ card.classList.remove('open'); card.setAttribute('aria-hidden','true'); locked=true; locateMode=false; card.classList.remove('locate-mode'); clearActive(); }
@@ -7764,6 +7861,3144 @@ const Gangotri = (function(){
 })();
 
 
+
+/* ============================================================
+   IMMERSIVE UJJAIN SCENE — Ram Ghat on the Shipra river
+   The sacred river ghat at Ujjain (Mahakaleshwar's city) with
+   the classic riverfront view: wide calm blue Shipra, long stone
+   ghat descending in steps, a chain of small orange-domed
+   pavilions, a main sandstone temple with a ribbed shikhara and
+   saffron flag, and a taller shikhara peeking behind.
+   Built in the same stylized art style as the other scenes.
+
+   Reference features from the photo:
+   - Wide calm blue river (Shipra) with reflections
+   - Long masonry ghat stepped down into the water
+   - Chain of 4-5 small pavilion-domes with orange/salmon caps
+   - Main temple with tall sandstone ribbed shikhara + saffron flag
+   - Second taller shikhara peeking behind
+   - Small blue-white kiosk building on the ghat
+   - Small corrugated-roof shed on the ghat
+   - Bell/lamp post with red bulb
+   - Boats moored at the ghat
+   - Trees scattered between pavilions
+   - Bright blue sky with wispy clouds
+   ============================================================ */
+/* ============================================================
+   IMMERSIVE UJJAIN SCENE — Mahakaleshwar temple complex
+   The great Jyotirliṅga temple at the heart of Ujjain, built to
+   match the aerial photograph.
+
+   Reference features from the photo:
+   - CENTRAL SHIKHARA: tall Bhumija-style peach-pink spire with
+     VERTICAL PEACH RIBS + horizontal cream banding + cluster of
+     small mini-shikharas (urushringas) around the base
+   - Gold kalasha and saffron flag on top
+   - Marigold garlands wrapped at the shikhara base
+   - MULTI-TIER STEPPED PYRAMIDAL HALL ROOF beneath the shikhara,
+     descending outward in visible tiers
+   - Central golden idol on the front face of the hall roof
+   - Cluster of 3-4 small dome shrines on the LEFT side with a
+     shared raised platform
+   - Row of red-and-white striped pavilion canopies at front-left
+   - Large rectangular Koṭi Tīrtha Kuṇḍa on the upper-right
+     with white marble surround, greenish water, red-fringed
+     white cloth canopies along its edge
+   - Large peepal tree with orange base-shrine on the front-right
+   - Silver metal canopy roofs on secondary buildings
+   - Dense pilgrim crowds in the plaza
+   ============================================================ */
+const Ujjain = (function(){
+  const root=document.getElementById('immersive');
+  const canvas=document.getElementById('immersiveScene');
+  const popover=document.getElementById('immPopover');
+  const popTitle=document.getElementById('immPopTitle');
+  const popBody=document.getElementById('immPopBody');
+
+  let inited=false, isOpen=false;
+  let uRenderer, uScene, uCamera, uControls, uClock;
+  const pickables=[];
+  const rotators=[];
+
+  const PEACH        = 0xe8a480;
+  const PEACH_LT     = 0xf4c8a0;
+  const PEACH_DK     = 0xb87050;
+  const CREAM_BAND   = 0xf0e0c8;
+  const STONE_GREY   = 0x9a938a;
+  const STONE_LT     = 0xbcb3a4;
+  const STONE_DK     = 0x6a6358;
+  const ROOF_STEP    = 0x8a8478;
+  const ROOF_STEP_LT = 0xa8a294;
+  const DOME_CREAM   = 0xece0c4;
+  const DOME_TRIM    = 0xd8c8a8;
+  const RED_STRIPE   = 0xd82830;
+  const WHITE_STRIPE = 0xf4ecd8;
+  const MARIGOLD     = 0xff9420;
+  const YELLOW_FL    = 0xffce4a;
+  const GOLD         = 0xe6c14a;
+  const SAFFRON      = 0xff7a1a;
+  const KUND_WATER   = 0x6a8a70;
+  const KUND_MARBLE  = 0xece0cc;
+  const PLAZA_STONE  = 0xa89e8e;
+  const TREE_GREEN   = 0x4a7a2a;
+  const TREE_DARK    = 0x2a5a1a;
+  const METAL_ROOF   = 0x9ca0a4;
+  const SKY          = 0xa8c4d8;
+  const IDOL_GOLD    = 0xd8a838;
+
+  const HOTSPOTS={
+    temple:{title:'Mahākāleśvara Jyotirliṅga', body:`The heart of Ujjain and one of the twelve great Jyotirliṅgas of Śiva. The Liṅga faces south — the direction of death, the domain of Yama — a unique and sacred orientation among the twelve. He is worshipped as svayambhū (self-manifested). The temple is most famed for the pre-dawn Bhasma Āratī, in which the Liṅga is anointed with sacred cremation ash while priests and pilgrims chant hymns to Mahākāla, the Lord of Time.`},
+    shikhara:{title:'The Peach Śikhara', body:`The ribbed Bhūmija-style spire rises directly over the garbhagṛha. Its distinctive peach-pink face is laced with vertical rib bands (pagas), horizontal cream mouldings, and a cluster of smaller subordinate spires (urushringas) at its base. A gilt kalaśa and saffron flag crown the summit.`},
+    hall:{title:'The Stepped Hall Roof', body:`The stepped pyramidal roof descending from the shikhara base is characteristic of Central Indian temple architecture. Its many small tiers step outward, sheltering the antarāla and mandapa halls beneath. A golden image of Mahākāla on the front pediment gazes out over the plaza.`},
+    garlands:{title:'Marigold Garlands', body:`Every dawn the śikhara base is wrapped in fresh strings of marigold and rose garlands, offered by devotees. The removed garlands from the day before are given as blessed prasād to the queuing pilgrims.`},
+    domes:{title:'Subsidiary Shrines', body:`The cluster of dome-shrines on the west of the complex houses smaller shrines to Gaṇeśa, Kārtikeya, Nandi, and the Aṣṭa-Bhairavas. Pilgrims pause at each in turn during their pradakṣiṇā (circumambulation) of the main temple.`},
+    kund:{title:'Koṭi Tīrtha Kuṇḍa', body:`The great rectangular sacred tank on the north side of the complex. Its name means 'the tank of a crore (ten million) sacred fords' — a single dip is said to grant the merit of bathing in every holy river of India. The waters are drawn each dawn for the ritual anointing of the Liṅga.`},
+    pavilions:{title:'Red Canopy Pavilions', body:`The small red-and-white striped pavilions shelter the queues of waiting devotees from Ujjain's summer sun. Beneath their bright cloth canopies, pilgrims wait for hours through festival days for their turn at darśan.`},
+    plaza:{title:'The Pilgrim Plaza', body:`The vast paved courtyard around the temple hosts throngs of devotees at every hour. During Śrāvaṇa month each Monday, and above all during the twelve-yearly Siṁhastha Kumbh, this plaza swells with hundreds of thousands.`},
+    tree:{title:'The Great Peepal', body:`The large peepal (Ficus religiosa) beside the plaza is regarded as sacred. A small orange shrine to Śiva's serpent-guardians sits nestled among its roots; devotees tie coloured threads to its branches while making vows.`}
+  };
+
+  function init(){
+    if(inited) return; inited=true;
+    uRenderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+    uRenderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth<640?1.5:2));
+    uRenderer.setSize(innerWidth, innerHeight);
+    uRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+    uRenderer.toneMappingExposure=1.2;
+    uRenderer.outputColorSpace=THREE.SRGBColorSpace;
+
+    uScene=new THREE.Scene();
+    uScene.background=new THREE.Color(SKY);
+    uScene.fog=new THREE.FogExp2(0xa8c4d8, 0.0028);
+
+    uCamera=new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 600);
+    uCamera.position.set(18, 24, 38);
+    uControls=new OrbitControls(uCamera, canvas);
+    uControls.enableDamping=true; uControls.dampingFactor=.08;
+    uControls.minDistance=16; uControls.maxDistance=120;
+    uControls.maxPolarAngle=Math.PI*0.48;
+    uControls.target.set(0, 6, 0);
+
+    uClock=new THREE.Clock();
+    buildScene();
+    bindInteractions();
+    animate();
+  }
+
+  function buildScene(){
+    uScene.add(new THREE.AmbientLight(0xffffff, 0.82));
+    uScene.add(new THREE.HemisphereLight(0xcfe8fa, 0xb0a088, 0.75));
+    const sun=new THREE.DirectionalLight(0xfff2da, 1.85);
+    sun.position.set(40, 60, 30); uScene.add(sun);
+
+    buildPlaza();
+    const temple = buildMainTemple();
+    temple.position.set(0, 0, 0);
+    uScene.add(temple);
+
+    buildDomeShrines();
+    buildRedPavilions();
+    buildKund();
+    buildTree();
+    buildMetalCanopy();
+    buildPeripheralBuildings();
+    buildPilgrims();
+    for(let i=0;i<5;i++) uScene.add(makeBird(i));
+  }
+
+  function buildPlaza(){
+    const plaza = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 80),
+      new THREE.MeshStandardMaterial({color:PLAZA_STONE, roughness:.85})
+    );
+    plaza.rotation.x=-Math.PI/2; plaza.position.y=0.01;
+    uScene.add(plaza);
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(240, 240),
+      new THREE.MeshStandardMaterial({color:0x8a7e6a, roughness:1})
+    );
+    ground.rotation.x=-Math.PI/2; ground.position.y=-0.01;
+    uScene.add(ground);
+    const pClick = new THREE.Mesh(
+      new THREE.RingGeometry(15, 34, 12),
+      new THREE.MeshBasicMaterial({visible:false, side:THREE.DoubleSide})
+    );
+    pClick.rotation.x=-Math.PI/2; pClick.position.y=0.1;
+    pickables.push({mesh:pClick, key:'plaza'});
+    uScene.add(pClick);
+  }
+
+  function buildMainTemple(){
+    const T = new THREE.Group();
+
+    const T1_W = 15, T1_H = 2.5;
+    const t1 = new THREE.Mesh(
+      new THREE.BoxGeometry(T1_W, T1_H, T1_W),
+      new THREE.MeshStandardMaterial({color:STONE_GREY, roughness:.9, flatShading:true})
+    );
+    t1.position.y = T1_H/2;
+    T.add(t1);
+    // Pilasters around tier 1
+    for(let side=0; side<4; side++){
+      const ang = side * Math.PI/2;
+      for(let i=-2; i<=2; i++){
+        const pil = new THREE.Mesh(
+          new THREE.BoxGeometry(0.35, T1_H*0.92, 0.15),
+          new THREE.MeshStandardMaterial({color:STONE_LT, roughness:.9})
+        );
+        const localX = i*2.4;
+        const localZ = T1_W/2 + 0.02;
+        pil.position.x = Math.cos(ang)*localX - Math.sin(ang)*localZ;
+        pil.position.z = Math.sin(ang)*localX + Math.cos(ang)*localZ;
+        pil.position.y = T1_H*0.46;
+        pil.rotation.y = ang;
+        T.add(pil);
+      }
+    }
+    const t1Cornice = new THREE.Mesh(
+      new THREE.BoxGeometry(T1_W+0.5, 0.35, T1_W+0.5),
+      new THREE.MeshStandardMaterial({color:STONE_LT, roughness:.85})
+    );
+    t1Cornice.position.y = T1_H + 0.17;
+    T.add(t1Cornice);
+
+    // Stepped pyramidal hall roof
+    const ROOF_BASE_Y = T1_H + 0.35;
+    const ROOF_TOP_W = 6.0;
+    const ROOF_BASE_W = T1_W - 1;
+    const ROOF_STEPS = 10;
+    const ROOF_TOTAL_H = 3.6;
+    for(let s=0; s<ROOF_STEPS; s++){
+      const t = s / (ROOF_STEPS-1);
+      const w = ROOF_BASE_W + (ROOF_TOP_W - ROOF_BASE_W) * t;
+      const y = ROOF_BASE_Y + t * ROOF_TOTAL_H;
+      const stepH = ROOF_TOTAL_H / ROOF_STEPS * 0.85;
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(w, stepH, w),
+        new THREE.MeshStandardMaterial({
+          color: s%2===0 ? ROOF_STEP : ROOF_STEP_LT,
+          roughness:.9, flatShading:true
+        })
+      );
+      step.position.y = y + stepH/2;
+      T.add(step);
+      const highlight = new THREE.Mesh(
+        new THREE.BoxGeometry(w*1.02, 0.05, w*1.02),
+        new THREE.MeshStandardMaterial({color:STONE_LT, roughness:.85})
+      );
+      highlight.position.y = y + stepH + 0.02;
+      T.add(highlight);
+    }
+
+    // Central golden idol on the front pediment
+    const idolT = 0.68;
+    const idolY = ROOF_BASE_Y + ROOF_TOTAL_H * idolT;
+    const idolW = ROOF_BASE_W + (ROOF_TOP_W - ROOF_BASE_W) * idolT;
+    const idolPed = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 1.0, 0.3),
+      new THREE.MeshStandardMaterial({color:PEACH_LT, roughness:.75})
+    );
+    idolPed.position.set(0, idolY + 0.5, idolW/2 + 0.15);
+    T.add(idolPed);
+    const idolFig = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.7, 0.15),
+      new THREE.MeshStandardMaterial({color:IDOL_GOLD, metalness:.7, roughness:.35,
+        emissive:0x8a5010, emissiveIntensity:.35})
+    );
+    idolFig.position.set(0, idolY + 0.5, idolW/2 + 0.32);
+    T.add(idolFig);
+    const idolHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 12, 10),
+      new THREE.MeshStandardMaterial({color:IDOL_GOLD, metalness:.7, roughness:.35,
+        emissive:0x8a5010, emissiveIntensity:.35})
+    );
+    idolHead.position.set(0, idolY + 0.98, idolW/2 + 0.32);
+    T.add(idolHead);
+    const idolCanopy = new THREE.Mesh(
+      new THREE.ConeGeometry(0.55, 0.4, 4),
+      new THREE.MeshStandardMaterial({color:GOLD, metalness:.7, roughness:.4,
+        emissive:0x8a5010, emissiveIntensity:.3})
+    );
+    idolCanopy.rotation.y = Math.PI/4;
+    idolCanopy.position.set(0, idolY + 1.35, idolW/2 + 0.32);
+    T.add(idolCanopy);
+
+    const hClick = new THREE.Mesh(
+      new THREE.BoxGeometry(ROOF_BASE_W+0.5, ROOF_TOTAL_H+0.5, ROOF_BASE_W+0.5),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    hClick.position.y = ROOF_BASE_Y + ROOF_TOTAL_H/2;
+    pickables.push({mesh:hClick, key:'hall'});
+    T.add(hClick);
+
+    // Main shikhara — peach Bhumija spire
+    const SH_BASE_Y = ROOF_BASE_Y + ROOF_TOTAL_H;
+    const SH_BASE_W = 5.0;
+    const SH_TOP_W  = 0.9;
+    const SH_HEIGHT = 12;
+    const SH_RINGS = 32;
+    function sh_w(t){
+      const base = Math.pow(1-t, 1.4);
+      return SH_BASE_W*base + SH_TOP_W*(1-base);
+    }
+    const shik = new THREE.Group();
+    for(let i=0;i<SH_RINGS;i++){
+      const t=i/SH_RINGS, t2=(i+1)/SH_RINGS;
+      const w1=sh_w(t), w2=sh_w(t2);
+      const rH=SH_HEIGHT/SH_RINGS;
+      const cyl=new THREE.Mesh(
+        new THREE.CylinderGeometry(w2/2, w1/2, rH, 12, 1, false),
+        new THREE.MeshStandardMaterial({color:PEACH, roughness:.75,
+          emissive:0x6a2a10, emissiveIntensity:0.08})
+      );
+      cyl.position.y = i*rH + rH/2;
+      shik.add(cyl);
+    }
+    // Vertical ribs (12 of them)
+    for(let p=0;p<12;p++){
+      const ang=(p/12)*Math.PI*2;
+      const ribH = SH_HEIGHT*0.94;
+      const rib=new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, ribH, 0.45),
+        new THREE.MeshStandardMaterial({color:PEACH_DK, roughness:.75})
+      );
+      const midR = sh_w(0.4)/2 * 0.94;
+      rib.position.set(Math.cos(ang)*midR, ribH/2, Math.sin(ang)*midR);
+      rib.lookAt(0, rib.position.y, 0);
+      shik.add(rib);
+    }
+    // Horizontal cream bands
+    [0.30, 0.55, 0.78].forEach(frac=>{
+      const bandW = sh_w(frac)/2 * 1.08;
+      const band=new THREE.Mesh(
+        new THREE.CylinderGeometry(bandW, bandW, 0.4, 14),
+        new THREE.MeshStandardMaterial({color:CREAM_BAND, roughness:.75})
+      );
+      band.position.y = SH_HEIGHT*frac;
+      shik.add(band);
+      const bandLine = new THREE.Mesh(
+        new THREE.CylinderGeometry(bandW*1.02, bandW*1.02, 0.08, 14),
+        new THREE.MeshStandardMaterial({color:PEACH_DK, roughness:.7})
+      );
+      bandLine.position.y = SH_HEIGHT*frac + 0.22;
+      shik.add(bandLine);
+    });
+
+    // Mini-shikharas (urushringas) around the base
+    function makeMiniShikhara(baseR, height, tiers){
+      const g = new THREE.Group();
+      const stepH = height / tiers;
+      for(let t=0; t<tiers; t++){
+        const frac = t / tiers;
+        const w = baseR * 2 * (1 - frac * 0.7);
+        const slab = new THREE.Mesh(
+          new THREE.CylinderGeometry(w/2, w/2 * 1.05, stepH*0.8, 8, 1, false),
+          new THREE.MeshStandardMaterial({color: t%2===0 ? PEACH : PEACH_LT,
+            roughness:.75, flatShading:true,
+            emissive:0x6a2a10, emissiveIntensity:.05})
+        );
+        slab.position.y = t*stepH + stepH/2;
+        g.add(slab);
+        if(t < tiers-1){
+          const trim = new THREE.Mesh(
+            new THREE.CylinderGeometry(w/2 * 1.05, w/2 * 1.05, 0.12, 8),
+            new THREE.MeshStandardMaterial({color:CREAM_BAND, roughness:.75})
+          );
+          trim.position.y = t*stepH + stepH*0.9;
+          g.add(trim);
+        }
+      }
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(baseR*0.3, 8, 6),
+        new THREE.MeshStandardMaterial({color:CREAM_BAND, roughness:.7})
+      );
+      cap.position.y = height + baseR*0.15;
+      g.add(cap);
+      const fin = new THREE.Mesh(
+        new THREE.ConeGeometry(baseR*0.15, baseR*0.4, 6),
+        new THREE.MeshStandardMaterial({color:GOLD, metalness:.75, roughness:.3,
+          emissive:0xc89030, emissiveIntensity:.4})
+      );
+      fin.position.y = height + baseR*0.5;
+      g.add(fin);
+      return g;
+    }
+    // Cardinal minis
+    for(let p=0; p<4; p++){
+      const ang = p * Math.PI/2;
+      const r = SH_BASE_W*0.55;
+      const mini = makeMiniShikhara(0.7, 3.5, 4);
+      mini.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+      shik.add(mini);
+    }
+    // Diagonal minis
+    for(let p=0; p<4; p++){
+      const ang = p * Math.PI/2 + Math.PI/4;
+      const r = SH_BASE_W*0.5;
+      const mini = makeMiniShikhara(0.55, 2.8, 3);
+      mini.position.set(Math.cos(ang)*r, 0.3, Math.sin(ang)*r);
+      shik.add(mini);
+    }
+    // Upper ring of tiny spires
+    for(let p=0; p<8; p++){
+      const ang = (p/8) * Math.PI * 2;
+      const r = sh_w(0.30)/2 * 0.9;
+      const mini = makeMiniShikhara(0.35, 1.6, 3);
+      mini.position.set(Math.cos(ang)*r, SH_HEIGHT*0.35, Math.sin(ang)*r);
+      shik.add(mini);
+    }
+
+    // Amalaka + kalasha + flag
+    const amalaka=new THREE.Mesh(
+      new THREE.CylinderGeometry(SH_TOP_W*0.95, SH_TOP_W*0.95, 0.4, 14),
+      new THREE.MeshStandardMaterial({color:CREAM_BAND, roughness:.7})
+    );
+    amalaka.position.y = SH_HEIGHT + 0.2;
+    shik.add(amalaka);
+    const kpot=new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 14, 10),
+      new THREE.MeshStandardMaterial({color:GOLD, metalness:.9, roughness:.15,
+        emissive:0xc89030, emissiveIntensity:.6})
+    );
+    kpot.position.y = SH_HEIGHT + 0.85;
+    shik.add(kpot);
+    const kpotTop=new THREE.Mesh(
+      new THREE.ConeGeometry(0.25, 0.8, 10),
+      new THREE.MeshStandardMaterial({color:GOLD, metalness:.9, roughness:.15,
+        emissive:0xc89030, emissiveIntensity:.6})
+    );
+    kpotTop.position.y = SH_HEIGHT + 1.55;
+    shik.add(kpotTop);
+    const pole=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6),
+      new THREE.MeshStandardMaterial({color:0x6a4a2a})
+    );
+    pole.position.y = SH_HEIGHT + 2.6;
+    shik.add(pole);
+    const flagGeo=new THREE.BufferGeometry();
+    flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      0,0,0,  1.8,-0.45,0,  0,-1.2,0
+    ]),3));
+    flagGeo.computeVertexNormals();
+    const flag=new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({
+      color:SAFFRON, side:THREE.DoubleSide, roughness:.7,
+      emissive:0xa84a10, emissiveIntensity:.3
+    }));
+    flag.position.set(0.05, SH_HEIGHT + 3.3, 0);
+    shik.add(flag);
+    rotators.push({obj:flag, type:'flag'});
+
+    shik.position.y = SH_BASE_Y;
+    T.add(shik);
+
+    const shClick=new THREE.Mesh(
+      new THREE.CylinderGeometry(SH_BASE_W*0.85, SH_BASE_W*0.85, SH_HEIGHT+4, 12),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    shClick.position.y = SH_BASE_Y + SH_HEIGHT/2 + 2;
+    pickables.push({mesh:shClick, key:'shikhara'});
+    T.add(shClick);
+
+    // Marigold garland ring
+    const garlandY = SH_BASE_Y - 0.4;
+    for(let i=0;i<40;i++){
+      const ang = (i/40) * Math.PI * 2;
+      const r = SH_BASE_W/2 * 1.15;
+      const flower = new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 8, 6),
+        new THREE.MeshStandardMaterial({
+          color: i%2===0 ? MARIGOLD : YELLOW_FL,
+          roughness:.7,
+          emissive: i%2===0 ? 0x6a3010 : 0x8a6a10, emissiveIntensity:.2
+        })
+      );
+      flower.position.set(Math.cos(ang)*r, garlandY + Math.sin(ang*4)*0.18, Math.sin(ang)*r);
+      T.add(flower);
+    }
+    // Hanging garland strings
+    function makeGarlandString(x1, y1, z1, x2, y2, z2, count){
+      for(let i=0;i<count;i++){
+        const t = (i+0.5)/count;
+        const fx = x1 + (x2-x1)*t;
+        const fy = y1 + (y2-y1)*t - Math.sin(t*Math.PI)*0.6;
+        const fz = z1 + (z2-z1)*t;
+        const flower = new THREE.Mesh(
+          new THREE.SphereGeometry(0.14, 6, 4),
+          new THREE.MeshStandardMaterial({
+            color: i%2===0 ? MARIGOLD : YELLOW_FL,
+            roughness:.7,
+            emissive: i%2===0 ? 0x6a3010 : 0x8a6a10, emissiveIntensity:.15
+          })
+        );
+        flower.position.set(fx, fy, fz);
+        T.add(flower);
+      }
+    }
+    const roofTopY = SH_BASE_Y - 0.2;
+    for(let p=0; p<4; p++){
+      const ang = p * Math.PI/2 + Math.PI/4;
+      const x1 = Math.cos(ang) * SH_BASE_W*0.5;
+      const z1 = Math.sin(ang) * SH_BASE_W*0.5;
+      const x2 = Math.cos(ang) * ROOF_TOP_W/2 * 1.4;
+      const z2 = Math.sin(ang) * ROOF_TOP_W/2 * 1.4;
+      makeGarlandString(x1, garlandY, z1, x2, roofTopY, z2, 8);
+    }
+
+    const gClick = new THREE.Mesh(
+      new THREE.CylinderGeometry(SH_BASE_W*1.1, SH_BASE_W*1.1, 1.5, 16),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    gClick.position.y = SH_BASE_Y - 0.4;
+    pickables.push({mesh:gClick, key:'garlands'});
+    T.add(gClick);
+
+    const tClick = new THREE.Mesh(
+      new THREE.BoxGeometry(T1_W+2, SH_BASE_Y+2, T1_W+2),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    tClick.position.y = (SH_BASE_Y+2)/2;
+    pickables.push({mesh:tClick, key:'temple'});
+    T.add(tClick);
+
+    return T;
+  }
+
+  function buildDomeShrines(){
+    const platform = new THREE.Mesh(
+      new THREE.BoxGeometry(6.5, 0.6, 12),
+      new THREE.MeshStandardMaterial({color:STONE_LT, roughness:.85})
+    );
+    platform.position.set(-12.5, 0.3, 1);
+    uScene.add(platform);
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(6.7, 0.15, 12.2),
+      new THREE.MeshStandardMaterial({color:STONE_DK, roughness:.9})
+    );
+    trim.position.set(-12.5, 0.5, 1);
+    uScene.add(trim);
+
+    function makePavilion(bs){
+      const p = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(bs, bs*0.85, bs),
+        new THREE.MeshStandardMaterial({color:DOME_CREAM, roughness:.8, flatShading:true})
+      );
+      base.position.y = bs*0.425;
+      p.add(base);
+      const opening = new THREE.Mesh(
+        new THREE.PlaneGeometry(bs*0.28, bs*0.55),
+        new THREE.MeshBasicMaterial({color:0x2a1c10})
+      );
+      opening.position.set(0, bs*0.35, bs/2 + 0.01);
+      p.add(opening);
+      const bTrim = new THREE.Mesh(
+        new THREE.BoxGeometry(bs*1.1, bs*0.06, bs*1.1),
+        new THREE.MeshStandardMaterial({color:DOME_TRIM, roughness:.85})
+      );
+      bTrim.position.y = bs*0.85 - bs*0.03;
+      p.add(bTrim);
+      const drum = new THREE.Mesh(
+        new THREE.CylinderGeometry(bs*0.42, bs*0.45, bs*0.15, 16),
+        new THREE.MeshStandardMaterial({color:DOME_TRIM, roughness:.8})
+      );
+      drum.position.y = bs*0.85 + bs*0.075;
+      p.add(drum);
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(bs*0.5, 16, 12, 0, Math.PI*2, 0, Math.PI*0.55),
+        new THREE.MeshStandardMaterial({color:DOME_CREAM, roughness:.75})
+      );
+      dome.position.y = bs*0.85 + bs*0.15;
+      p.add(dome);
+      const finial = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.08, 0.25, 6),
+        new THREE.MeshStandardMaterial({color:GOLD, metalness:.75, roughness:.3,
+          emissive:0xc89030, emissiveIntensity:.4})
+      );
+      finial.position.y = bs*0.85 + bs*0.15 + bs*0.5;
+      p.add(finial);
+      const finTop = new THREE.Mesh(
+        new THREE.ConeGeometry(0.06, 0.2, 6),
+        new THREE.MeshStandardMaterial({color:GOLD, metalness:.75, roughness:.3,
+          emissive:0xc89030, emissiveIntensity:.4})
+      );
+      finTop.position.y = bs*0.85 + bs*0.15 + bs*0.5 + 0.22;
+      p.add(finTop);
+      return p;
+    }
+    const spots = [
+      {x:-12, z:-4, bs:2.6},
+      {x:-12, z:0.5, bs:2.4},
+      {x:-12, z:5, bs:2.2},
+      {x:-14, z:1.5, bs:1.8},
+    ];
+    spots.forEach(s=>{
+      const p = makePavilion(s.bs);
+      p.position.set(s.x, 0.6, s.z);
+      p.rotation.y = (Math.random()-0.5)*0.4;
+      uScene.add(p);
+    });
+
+    const dClick = new THREE.Mesh(
+      new THREE.BoxGeometry(8, 5, 13),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    dClick.position.set(-12.5, 2.5, 1);
+    pickables.push({mesh:dClick, key:'domes'});
+    uScene.add(dClick);
+  }
+
+  function buildRedPavilions(){
+    function makeStripedCanopy(){
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.8, 1.5),
+        new THREE.MeshStandardMaterial({color:WHITE_STRIPE, roughness:.85})
+      );
+      base.position.y = 0.4;
+      g.add(base);
+      [-1,1].forEach(sx=>{
+        [-1,1].forEach(sz=>{
+          const pill = new THREE.Mesh(
+            new THREE.BoxGeometry(0.12, 1.6, 0.12),
+            new THREE.MeshStandardMaterial({color:WHITE_STRIPE, roughness:.85})
+          );
+          pill.position.set(sx*0.6, 0.8 + 0.8, sz*0.6);
+          g.add(pill);
+        });
+      });
+      // Layered striped canopy
+      const skirt = new THREE.Mesh(
+        new THREE.ConeGeometry(1.35, 0.35, 4, 1, false),
+        new THREE.MeshStandardMaterial({color:RED_STRIPE, roughness:.7, flatShading:true,
+          emissive:0x6a1010, emissiveIntensity:.15})
+      );
+      skirt.rotation.y = Math.PI/4;
+      skirt.position.y = 0.8 + 1.6 + 0.15;
+      g.add(skirt);
+      const white1 = new THREE.Mesh(
+        new THREE.ConeGeometry(1.1, 0.28, 4, 1, false),
+        new THREE.MeshStandardMaterial({color:WHITE_STRIPE, roughness:.7, flatShading:true})
+      );
+      white1.rotation.y = Math.PI/4;
+      white1.position.y = 0.8 + 1.6 + 0.48;
+      g.add(white1);
+      const red2 = new THREE.Mesh(
+        new THREE.ConeGeometry(0.85, 0.28, 4, 1, false),
+        new THREE.MeshStandardMaterial({color:RED_STRIPE, roughness:.7, flatShading:true,
+          emissive:0x6a1010, emissiveIntensity:.15})
+      );
+      red2.rotation.y = Math.PI/4;
+      red2.position.y = 0.8 + 1.6 + 0.76;
+      g.add(red2);
+      const peak = new THREE.Mesh(
+        new THREE.ConeGeometry(0.55, 0.55, 4),
+        new THREE.MeshStandardMaterial({color:WHITE_STRIPE, roughness:.7, flatShading:true})
+      );
+      peak.rotation.y = Math.PI/4;
+      peak.position.y = 0.8 + 1.6 + 1.15;
+      g.add(peak);
+      const finial = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.3, 6),
+        new THREE.MeshStandardMaterial({color:GOLD, metalness:.75, roughness:.3,
+          emissive:0xc89030, emissiveIntensity:.4})
+      );
+      finial.position.y = 0.8 + 1.6 + 1.55;
+      g.add(finial);
+      return g;
+    }
+    const spots = [
+      [-6, 12], [-3.5, 12], [-1, 12], [1.5, 12], [4, 12]
+    ];
+    spots.forEach(([x, z])=>{
+      const p = makeStripedCanopy();
+      p.position.set(x, 0, z);
+      p.rotation.y = (Math.random()-0.5)*0.15;
+      uScene.add(p);
+    });
+
+    const rClick = new THREE.Mesh(
+      new THREE.BoxGeometry(13, 4, 3),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    rClick.position.set(-1, 2, 12);
+    pickables.push({mesh:rClick, key:'pavilions'});
+    uScene.add(rClick);
+  }
+
+  function buildKund(){
+    const kundW = 11, kundD = 8;
+    const kundX = 13, kundZ = -8;
+    const surround = new THREE.Mesh(
+      new THREE.BoxGeometry(kundW + 2, 0.8, kundD + 2),
+      new THREE.MeshStandardMaterial({color:KUND_MARBLE, roughness:.6, metalness:.05})
+    );
+    surround.position.set(kundX, 0.4, kundZ);
+    uScene.add(surround);
+    const recess = new THREE.Mesh(
+      new THREE.BoxGeometry(kundW, 1.2, kundD),
+      new THREE.MeshStandardMaterial({color:STONE_DK, roughness:.9})
+    );
+    recess.position.set(kundX, 0.6, kundZ);
+    uScene.add(recess);
+    const water = new THREE.Mesh(
+      new THREE.BoxGeometry(kundW*0.9, 0.25, kundD*0.9),
+      new THREE.MeshStandardMaterial({color:KUND_WATER, roughness:.35, metalness:.35,
+        emissive:0x1a3a2a, emissiveIntensity:.15})
+    );
+    water.position.set(kundX, 0.7, kundZ);
+    uScene.add(water);
+    for(let i=0;i<12;i++){
+      const ripple = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5 + Math.random()*1.5, 0.06),
+        new THREE.MeshBasicMaterial({color:0xa8c4a0, transparent:true, opacity:0.35})
+      );
+      ripple.rotation.x = -Math.PI/2;
+      ripple.position.set(kundX + (Math.random()-0.5)*kundW*0.7, 0.83,
+                           kundZ + (Math.random()-0.5)*kundD*0.7);
+      ripple.userData = {ph:Math.random()*Math.PI*2};
+      rotators.push({obj:ripple, type:'kundRipple'});
+      uScene.add(ripple);
+    }
+    // Red-fringed white cloth canopies along the north edge
+    for(let i=0; i<5; i++){
+      const cx = kundX - kundW/2 + 1.5 + i * (kundW - 3)/4;
+      const cz = kundZ - kundD/2 - 0.8;
+      const c = new THREE.Group();
+      const cloth = new THREE.Mesh(
+        new THREE.BoxGeometry(1.6, 0.08, 1.5),
+        new THREE.MeshStandardMaterial({color:WHITE_STRIPE, roughness:.75})
+      );
+      cloth.position.y = 1.6;
+      c.add(cloth);
+      const fringe = new THREE.Mesh(
+        new THREE.BoxGeometry(1.7, 0.15, 1.55),
+        new THREE.MeshStandardMaterial({color:RED_STRIPE, roughness:.7,
+          emissive:0x6a1010, emissiveIntensity:.15})
+      );
+      fringe.position.y = 1.5;
+      c.add(fringe);
+      [-1, 1].forEach(sx=>{
+        [-1, 1].forEach(sz=>{
+          const pole = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.04, 1.6, 6),
+            new THREE.MeshStandardMaterial({color:0x6a4a2a})
+          );
+          pole.position.set(sx*0.7, 0.8, sz*0.65);
+          c.add(pole);
+        });
+      });
+      c.position.set(cx, 0.9, cz);
+      uScene.add(c);
+    }
+    [[kundW/2+0.9, kundD/2+0.9], [-kundW/2-0.9, kundD/2+0.9],
+     [kundW/2+0.9, -kundD/2-0.9], [-kundW/2-0.9, -kundD/2-0.9]].forEach(([dx, dz])=>{
+      const orn = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 0.8, 0.55),
+        new THREE.MeshStandardMaterial({color:KUND_MARBLE, roughness:.6})
+      );
+      orn.position.set(kundX+dx, 1.2, kundZ+dz);
+      uScene.add(orn);
+      const cap = new THREE.Mesh(
+        new THREE.ConeGeometry(0.32, 0.4, 6),
+        new THREE.MeshStandardMaterial({color:STONE_LT, roughness:.7})
+      );
+      cap.position.set(kundX+dx, 1.8, kundZ+dz);
+      uScene.add(cap);
+    });
+
+    const kClick = new THREE.Mesh(
+      new THREE.BoxGeometry(kundW+3, 2.5, kundD+3),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    kClick.position.set(kundX, 1.2, kundZ);
+    pickables.push({mesh:kClick, key:'kund'});
+    uScene.add(kClick);
+  }
+
+  function buildTree(){
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.75, 4.8, 7),
+      new THREE.MeshStandardMaterial({color:0x4a3a20, roughness:.95, flatShading:true})
+    );
+    trunk.position.y = 2.4;
+    g.add(trunk);
+    for(let i=0;i<10;i++){
+      const foliage = new THREE.Mesh(
+        new THREE.SphereGeometry(2.0 + Math.random()*0.8, 10, 8),
+        new THREE.MeshStandardMaterial({color: i%2 ? TREE_GREEN : TREE_DARK,
+          roughness:.85, flatShading:true})
+      );
+      foliage.position.set(
+        (Math.random()-0.5)*3.0,
+        4.8 + Math.random()*2.2,
+        (Math.random()-0.5)*3.0
+      );
+      g.add(foliage);
+    }
+    const shrine = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.7, 0.9),
+      new THREE.MeshStandardMaterial({color:MARIGOLD, roughness:.75,
+        emissive:0x6a3010, emissiveIntensity:.2})
+    );
+    shrine.position.set(1.2, 0.35, 0);
+    g.add(shrine);
+    const shrineCap = new THREE.Mesh(
+      new THREE.ConeGeometry(0.5, 0.55, 4),
+      new THREE.MeshStandardMaterial({color:RED_STRIPE, roughness:.7,
+        emissive:0x6a1010, emissiveIntensity:.15})
+    );
+    shrineCap.rotation.y = Math.PI/4;
+    shrineCap.position.set(1.2, 0.95, 0);
+    g.add(shrineCap);
+    const fin = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.25, 6),
+      new THREE.MeshStandardMaterial({color:GOLD, metalness:.75, roughness:.3,
+        emissive:0xc89030, emissiveIntensity:.4})
+    );
+    fin.position.set(1.2, 1.35, 0);
+    g.add(fin);
+
+    g.position.set(11, 0, 10);
+    uScene.add(g);
+
+    const tClick = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 9, 6),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    tClick.position.set(11, 4.5, 10);
+    pickables.push({mesh:tClick, key:'tree'});
+    uScene.add(tClick);
+  }
+
+  function buildMetalCanopy(){
+    const g = new THREE.Group();
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(11, 0.18, 4.5),
+      new THREE.MeshStandardMaterial({color:METAL_ROOF, roughness:.4, metalness:.55,
+        flatShading:true})
+    );
+    roof.position.set(0, 3.0, 0);
+    g.add(roof);
+    for(let x=-4.5; x<=4.5; x+=1.8){
+      [-1.8, 1.8].forEach(zSide=>{
+        const post = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.08, 3.0, 6),
+          new THREE.MeshStandardMaterial({color:0x6a6a6a, metalness:.4, roughness:.4})
+        );
+        post.position.set(x, 1.5, zSide);
+        g.add(post);
+      });
+    }
+    g.position.set(6, 0, 15);
+    uScene.add(g);
+  }
+
+  function buildPeripheralBuildings(){
+    const buildingSpots = [
+      {x:-24, z:-8, w:5, h:3.5, d:5, c:0xa8a4a0},
+      {x:-26, z:2, w:6, h:3.0, d:5, c:0xbca890},
+      {x:22, z:-16, w:6, h:3.5, d:5, c:0x9a8878},
+      {x:24, z:8, w:5, h:3.2, d:5, c:0xa89880},
+      {x:-10, z:22, w:5, h:2.8, d:4, c:0xb8a898},
+      {x:10, z:24, w:6, h:3.2, d:5, c:0xa89484},
+      {x:24, z:0, w:4, h:2.8, d:4, c:0xac9a84},
+      {x:-24, z:12, w:5, h:3.4, d:4, c:0xa89680},
+    ];
+    buildingSpots.forEach(b=>{
+      const bg = new THREE.Group();
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(b.w, b.h, b.d),
+        new THREE.MeshStandardMaterial({color:b.c, roughness:.85, flatShading:true})
+      );
+      wall.position.y = b.h/2;
+      bg.add(wall);
+      const roof = new THREE.Mesh(
+        new THREE.BoxGeometry(b.w*1.05, 0.15, b.d*1.05),
+        new THREE.MeshStandardMaterial({color:METAL_ROOF, roughness:.5, metalness:.4})
+      );
+      roof.position.y = b.h + 0.08;
+      bg.add(roof);
+      const win = new THREE.Mesh(
+        new THREE.PlaneGeometry(b.w*0.65, b.h*0.2),
+        new THREE.MeshBasicMaterial({color:0x2a3a48})
+      );
+      win.position.set(0, b.h*0.55, b.d/2+0.01);
+      bg.add(win);
+      bg.position.set(b.x, 0, b.z);
+      bg.rotation.y = (Math.random()-0.5)*0.4;
+      uScene.add(bg);
+    });
+  }
+
+  function makePilgrim(x, y, z){
+    const g=new THREE.Group();
+    const colors=[0xd83c2a, 0xe89a2a, 0xf5f0e0, 0xc44a8a, 0x4a8ac4, 0xe8c44a, 0x8a4a8a, 0x5a8a4a];
+    const c=colors[Math.floor(Math.random()*colors.length)];
+    const body=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.22, 0.9, 6),
+      new THREE.MeshStandardMaterial({color:c, roughness:.85})
+    );
+    body.position.y=0.45; g.add(body);
+    const head=new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 6),
+      new THREE.MeshStandardMaterial({color:0x7a5a3a, roughness:.9})
+    );
+    head.position.y=1.05; g.add(head);
+    g.position.set(x, y, z);
+    g.rotation.y=Math.random()*Math.PI*2;
+    g.userData={speed:0.5+Math.random()*0.7};
+    rotators.push({obj:g, type:'pilgrim'});
+    return g;
+  }
+  function buildPilgrims(){
+    for(let i=0;i<80;i++){
+      const x = (Math.random()-0.5)*18;
+      const z = 8 + Math.random()*10;
+      uScene.add(makePilgrim(x, 0, z));
+    }
+    for(let i=0;i<28;i++){
+      const ang = (i/28)*Math.PI*2;
+      const r = 10 + Math.random()*2;
+      uScene.add(makePilgrim(Math.cos(ang)*r, 0, Math.sin(ang)*r));
+    }
+    for(let i=0;i<12;i++){
+      const x = 13 + (Math.random()-0.5)*9;
+      const z = -8 + (Math.random()-0.5)*7;
+      uScene.add(makePilgrim(x, 0, z));
+    }
+    for(let i=0;i<14;i++){
+      const x = -6 + Math.random()*11;
+      const z = 12 + (Math.random()-0.5)*1;
+      uScene.add(makePilgrim(x, 0, z));
+    }
+  }
+
+  function makeBird(i){
+    const g=new THREE.Group();
+    const wingMat=new THREE.MeshBasicMaterial({color:0x33302c, side:THREE.DoubleSide});
+    function wing(){
+      const wg=new THREE.Group();
+      const inner=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.5), wingMat);
+      inner.rotation.x=-Math.PI/2; inner.position.x=-0.75; wg.add(inner);
+      return wg;
+    }
+    const wL=wing(); wL.position.z=0.25; g.add(wL);
+    const wR=wing(); wR.position.z=-0.25; wR.scale.z=-1; g.add(wR);
+    g.userData={
+      cx:(Math.random()-0.5)*40, cz:(Math.random()-0.5)*40,
+      r:24+Math.random()*20, sp:0.05+Math.random()*0.05,
+      ph:i*0.7, h:22+Math.random()*12, wL, wR
+    };
+    rotators.push({obj:g, type:'bird'});
+    return g;
+  }
+
+  function bindInteractions(){
+    let downAt=null;
+    canvas.addEventListener('pointerdown', e=>{
+      if(!isOpen) return; downAt=[e.clientX, e.clientY];
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(!isOpen || !downAt) return;
+      const moved=Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]);
+      downAt=null;
+      if(moved>6) return;
+      const r=canvas.getBoundingClientRect();
+      const nv=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+      const rc=new THREE.Raycaster(); rc.setFromCamera(nv, uCamera);
+      const meshes=pickables.map(p=>p.mesh);
+      const hits=rc.intersectObjects(meshes, true);
+      if(hits.length){
+        let hit=hits[0].object;
+        while(hit){
+          const p=pickables.find(q=>q.mesh===hit);
+          if(p){ showPopover(p.key); return; }
+          hit=hit.parent;
+        }
+      }
+    });
+    addEventListener('resize', ()=>{
+      if(!inited) return;
+      uCamera.aspect=innerWidth/innerHeight; uCamera.updateProjectionMatrix();
+      uRenderer.setSize(innerWidth,innerHeight);
+    });
+  }
+  function showPopover(key){
+    const h=HOTSPOTS[key]; if(!h) return;
+    popTitle.textContent=h.title; popBody.textContent=h.body;
+    popover.classList.add('open');
+  }
+
+  function animate(){
+    if(!isOpen){ requestAnimationFrame(animate); return; }
+    requestAnimationFrame(animate);
+    const t=uClock.getElapsedTime();
+    rotators.forEach(r=>{
+      if(r.type==='flag'){
+        r.obj.rotation.y = Math.sin(t*2.5)*0.35;
+        r.obj.scale.x = 1 + Math.sin(t*3)*0.05;
+      } else if(r.type==='pilgrim'){
+        r.obj.rotation.y += 0.002 * r.obj.userData.speed;
+      } else if(r.type==='bird'){
+        const u=r.obj.userData;
+        const a=u.ph + t*u.sp;
+        r.obj.position.set(u.cx+Math.cos(a)*u.r, u.h+Math.sin(t*0.4+u.ph)*2, u.cz+Math.sin(a)*u.r);
+        r.obj.rotation.y=-a;
+        const f=Math.sin(t*7+u.ph)*0.5;
+        u.wL.rotation.x=f; u.wR.rotation.x=f;
+      } else if(r.type==='kundRipple'){
+        r.obj.material.opacity = 0.25 + Math.sin(t*1.5 + r.obj.userData.ph)*0.15;
+      }
+    });
+    uControls.update();
+    uRenderer.render(uScene, uCamera);
+  }
+
+  function open(){
+    init(); isOpen=true;
+    root.classList.add('open'); root.setAttribute('aria-hidden','false');
+    uCamera.position.set(18, 24, 38);
+    uControls.target.set(0, 6, 0);
+    uRenderer.setSize(innerWidth, innerHeight);
+    uCamera.aspect=innerWidth/innerHeight; uCamera.updateProjectionMatrix();
+  }
+  function close(){
+    isOpen=false;
+    root.classList.remove('open'); root.setAttribute('aria-hidden','true');
+    popover.classList.remove('open');
+  }
+
+  return {open, close};
+})();
+
+
+
+/* ============================================================
+   IMMERSIVE SOMNATH SCENE
+   The first and foremost of the twelve Jyotirliṅgas, on the
+   Saurashtra coast of Gujarat where India meets the Arabian Sea.
+   Built to match the reference photo carefully.
+
+   Reference features from the photo:
+   - Tall slim honey-sandstone ribbed shikhara with vertical
+     pagas, small horizontal mouldings, curvilinear profile
+   - Amalaka + kalasha + SAFFRON FLAG with TRIDENT on top
+   - Large hemispherical DOMED sabhamandapa directly below
+     the shikhara, encrusted with rows of small mini-spires
+   - TWO-STOREY OPEN PILLARED PORCH structure at the base,
+     with carved sandstone columns
+   - MULTI-TIERED ORANGE-TERRACOTTA EAVES between the storeys
+     (very prominent horizontal roof bands)
+   - Raised temple platform with steps down to plaza
+   - BRIGHT GREEN manicured garden strips with hedges
+   - Small ornamental palm-like trees flanking the entrance
+   - White ornamental fenced walkways
+   - BRIGHT BLUE ARABIAN SEA on the west side
+   - Bright blue sky
+   ============================================================ */
+const Somnath = (function(){
+  const root=document.getElementById('immersive');
+  const canvas=document.getElementById('immersiveScene');
+  const popover=document.getElementById('immPopover');
+  const popTitle=document.getElementById('immPopTitle');
+  const popBody=document.getElementById('immPopBody');
+
+  let inited=false, isOpen=false;
+  let sRenderer, sScene, sCamera, sControls, sClock;
+  const pickables=[];
+  const rotators=[];
+
+  // Palette matched carefully to the photo
+  const HONEY        = 0xe8b870;
+  const HONEY_LT     = 0xf4d094;
+  const HONEY_DK     = 0xc0904a;
+  const HONEY_TRIM   = 0xa8783a;
+  const TERRACOTTA   = 0xc8582a;   // orange-terracotta eave roofs
+  const TERRACOTTA_LT= 0xe8703a;
+  const TERRACOTTA_DK= 0x8a3818;
+  const GARDEN_GREEN = 0x3a7a2a;
+  const HEDGE_GREEN  = 0x2a6a1a;
+  const PLAZA_STONE  = 0xd4c8a8;
+  const WHITE_FENCE  = 0xf4ecd8;
+  const SEA_BLUE     = 0x2a6ab8;
+  const SEA_LIGHT    = 0x4a8ad8;
+  const SEA_FOAM     = 0xe8f0f8;
+  const SKY          = 0x7ab4e8;
+  const GOLD         = 0xe6c14a;
+  const SAFFRON      = 0xff7a1a;
+  const TRIDENT      = 0xb89060;   // trident brass
+  const PALM_GREEN   = 0x4a8a4a;
+  const PALM_TRUNK   = 0x6a4a2a;
+
+  const HOTSPOTS={
+    temple:{title:'Somanātha Mahādeva', body:`The first and foremost of the twelve Jyotirliṅgas of Śiva, on the Saurashtra coast of Gujarat. Its name means 'Lord of the Moon' — the moon-god Soma is said to have first built it in gold to be cured of a curse laid upon him. It is among the most storied temples in India — sacked and rebuilt many times across a thousand years, most famously plundered by Mahmud of Ghazni in 1026. The present magnificent temple, in the soaring Chalukya style, was completed in 1951 at the urging of Sardar Vallabhbhai Patel.`},
+    shikhara:{title:'The Chālukya Śikhara', body:`The tall slim curvilinear spire over the sanctum, built in the classical Chalukya style. Ribbed with vertical pagas (offsets), banded with horizontal mouldings, and crowned by an amalaka disc, kalaśa pot, saffron flag, and gilt trishul (trident) — the emblem of Lord Śiva. The flag is changed daily at dawn.`},
+    dome:{title:'The Domed Sabhāmaṇḍapa', body:`Directly beneath the śikhara rises the great hemispherical dome of the assembly hall (sabhāmaṇḍapa). Its surface is encrusted with dozens of miniature carved spires arranged in concentric rings — a signature feature of Chalukya-Solanki temple design that gives the roof its distinctive mountain-of-spires silhouette.`},
+    porch:{title:'The Two-Storey Porch', body:`The temple stands on a raised platform, its base wrapped in a magnificent two-storey open pillared porch. Every column, capital and bracket is carved with figures, floral motifs and geometric bands in the classical Māru-Gurjara style. Between the storeys run bright terracotta-orange eaves that offer shade to circumambulating pilgrims.`},
+    sea:{title:'The Arabian Sea', body:`The temple stands on the shore of the Arabian Sea. An ancient inscription notes there is no land in a straight line between its shore and Antarctica — a poetic reminder that Somanātha faces the open ocean. Each evening the sea reddens with the setting sun, and pilgrims descend to the ghāṭs for the closing āratī.`},
+    garden:{title:'The Temple Gardens', body:`The bright manicured lawns and hedges around the temple are a modern addition — the restored complex includes formal gardens, an aquarium, a museum of temple sculpture, and the celebrated Somnath sound-and-light show at night. The gardens frame the temple's pale honey-stone against the deep blue of sea and sky.`},
+    plaza:{title:'The Pilgrim Plaza', body:`The wide paved plaza around the temple accommodates the many thousands who visit daily. On Kārtika Pūrṇimā (November full moon) and Mahā Śivarātri, tens of thousands throng the plaza and shore for special worship.`},
+    flag:{title:'The Trident and Flag', body:`The gold trident (trishul) atop the śikhara is the emblem of Lord Śiva — the three prongs representing his triple aspect: creator, sustainer and destroyer. Below flies the saffron dhwaja, the flag of victory. Together they proclaim the presence of Śiva-Somanātha to sailors and pilgrims alike from far across land and sea.`}
+  };
+
+  function init(){
+    if(inited) return; inited=true;
+    sRenderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+    sRenderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth<640?1.5:2));
+    sRenderer.setSize(innerWidth, innerHeight);
+    sRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+    sRenderer.toneMappingExposure=1.22;
+    sRenderer.outputColorSpace=THREE.SRGBColorSpace;
+
+    sScene=new THREE.Scene();
+    sScene.background=new THREE.Color(SKY);
+    sScene.fog=new THREE.FogExp2(0x9ac4e8, 0.0025);
+
+    sCamera=new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+    sCamera.position.set(24, 20, 42);
+    sControls=new OrbitControls(sCamera, canvas);
+    sControls.enableDamping=true; sControls.dampingFactor=.08;
+    sControls.minDistance=16; sControls.maxDistance=140;
+    sControls.maxPolarAngle=Math.PI*0.48;
+    sControls.target.set(0, 12, 0);
+
+    sClock=new THREE.Clock();
+    buildScene();
+    bindInteractions();
+    animate();
+  }
+
+  function buildScene(){
+    /* Lights — bright warm daytime */
+    sScene.add(new THREE.AmbientLight(0xffffff, 0.82));
+    sScene.add(new THREE.HemisphereLight(0xcfe8fa, 0xc8a878, 0.75));
+    const sun=new THREE.DirectionalLight(0xfff2da, 1.9);
+    sun.position.set(40, 60, 30); sScene.add(sun);
+
+    /* Ground / plaza */
+    buildPlaza();
+
+    /* The main Somnath temple */
+    const temple = buildMainTemple();
+    temple.position.set(0, 0, 0);
+    sScene.add(temple);
+
+    /* Green garden strips with hedges around the temple */
+    buildGardens();
+
+    /* Ornamental palm-like trees flanking the entrance */
+    buildPalms();
+
+    /* White ornamental fenced walkways */
+    buildFences();
+
+    /* Arabian Sea on the west (-X direction) */
+    buildSea();
+
+    /* Distant peripheral buildings */
+    buildDistantBuildings();
+
+    /* Pilgrims on the plaza */
+    buildPilgrims();
+
+    /* Seagulls over the sea */
+    for(let i=0;i<6;i++) sScene.add(makeBird(i));
+  }
+
+  /* ============== Plaza ============== */
+  function buildPlaza(){
+    // Warm sandstone-colored plaza
+    const plaza = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 80),
+      new THREE.MeshStandardMaterial({color:PLAZA_STONE, roughness:.85})
+    );
+    plaza.rotation.x=-Math.PI/2; plaza.position.y=0.01;
+    sScene.add(plaza);
+    // Wider ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(240, 240),
+      new THREE.MeshStandardMaterial({color:0x8a7e6a, roughness:1})
+    );
+    ground.rotation.x=-Math.PI/2; ground.position.y=-0.01;
+    sScene.add(ground);
+    // Plaza click target
+    const pClick = new THREE.Mesh(
+      new THREE.RingGeometry(18, 32, 12),
+      new THREE.MeshBasicMaterial({visible:false, side:THREE.DoubleSide})
+    );
+    pClick.rotation.x=-Math.PI/2; pClick.position.y=0.1;
+    pickables.push({mesh:pClick, key:'plaza'});
+    sScene.add(pClick);
+  }
+
+  /* ============== Central Somnath temple ============== */
+  function buildMainTemple(){
+    const T = new THREE.Group();
+
+    /* ---- Raised temple base platform ---- */
+    const BASE_W = 16;      // Narrower base for slimmer overall silhouette
+    const BASE_H = 2.0;
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(BASE_W, BASE_H, BASE_W),
+      new THREE.MeshStandardMaterial({color:HONEY_DK, roughness:.85, flatShading:true})
+    );
+    base.position.y = BASE_H/2;
+    T.add(base);
+    // Lighter cornice band on top of base
+    const baseCornice = new THREE.Mesh(
+      new THREE.BoxGeometry(BASE_W+0.5, 0.3, BASE_W+0.5),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.85})
+    );
+    baseCornice.position.y = BASE_H + 0.15;
+    T.add(baseCornice);
+    // Decorative sculpted band all around the base (relief-like)
+    const baseBand = new THREE.Mesh(
+      new THREE.BoxGeometry(BASE_W+0.1, 0.45, BASE_W+0.1),
+      new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+    );
+    baseBand.position.y = BASE_H*0.7;
+    T.add(baseBand);
+    // Steps down at the front (south side +Z)
+    for(let s=0; s<5; s++){
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(7, 0.35, 0.7),
+        new THREE.MeshStandardMaterial({color:HONEY, roughness:.9})
+      );
+      step.position.set(0, 0.175 + s*0.35, BASE_W/2 + 1.8 - s*0.7);
+      T.add(step);
+    }
+
+    /* ---- LOWER STOREY: open pillared porch with arched openings ---- */
+    const S1_Y = BASE_H + 0.3;
+    const S1_H = 3.2;
+    // Inner sanctum core
+    const S1_INNER = 8;
+    const s1Inner = new THREE.Mesh(
+      new THREE.BoxGeometry(S1_INNER, S1_H, S1_INNER),
+      new THREE.MeshStandardMaterial({color:HONEY, roughness:.85, flatShading:true})
+    );
+    s1Inner.position.y = S1_Y + S1_H/2;
+    T.add(s1Inner);
+    // Carved pillar generator (compact)
+    function makeCarvedPillar(h){
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 0.35, 0.4),
+        new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+      );
+      base.position.y = 0.175; g.add(base);
+      const b1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, h*0.45, 0.26),
+        new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.85})
+      );
+      b1.position.y = 0.35 + h*0.225; g.add(b1);
+      const mid = new THREE.Mesh(
+        new THREE.BoxGeometry(0.36, 0.14, 0.36),
+        new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+      );
+      mid.position.y = 0.35 + h*0.45 + 0.07; g.add(mid);
+      const b2 = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.16, h*0.4, 8),
+        new THREE.MeshStandardMaterial({color:HONEY, roughness:.85})
+      );
+      b2.position.y = 0.35 + h*0.45 + 0.14 + h*0.2; g.add(b2);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.44, 0.14, 0.44),
+        new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+      );
+      cap.position.y = 0.35 + h*0.45 + 0.14 + h*0.4 + 0.07; g.add(cap);
+      const bracket = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.18, 0.3),
+        new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.85})
+      );
+      bracket.position.y = 0.35 + h*0.45 + 0.14 + h*0.4 + 0.2; g.add(bracket);
+      return g;
+    }
+    // Perimeter pillars for storey 1 (5 per side around the outer square)
+    const PILL_R = 6.5;
+    for(let side=0; side<4; side++){
+      const ang = side * Math.PI/2;
+      for(let i=-2; i<=2; i++){
+        const localX = i * (PILL_R*2/4);
+        const localZ = PILL_R;
+        const px = Math.cos(ang)*localX - Math.sin(ang)*localZ;
+        const pz = Math.sin(ang)*localX + Math.cos(ang)*localZ;
+        const pill = makeCarvedPillar(S1_H);
+        pill.position.set(px, S1_Y, pz);
+        pill.rotation.y = ang;
+        T.add(pill);
+      }
+    }
+    // Arched openings between pillars (dark rectangles set back)
+    for(let side=0; side<4; side++){
+      const ang = side * Math.PI/2;
+      for(let i=-1; i<=1; i++){
+        const localX = i * (PILL_R*2/4) + PILL_R*2/8;
+        const localZ = PILL_R - 0.1;
+        const ax = Math.cos(ang)*localX - Math.sin(ang)*localZ;
+        const az = Math.sin(ang)*localX + Math.cos(ang)*localZ;
+        // shadow rectangle
+        const arch = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.5, S1_H*0.75),
+          new THREE.MeshBasicMaterial({color:0x3a2818, side:THREE.DoubleSide})
+        );
+        arch.position.set(ax, S1_Y + S1_H*0.4, az);
+        arch.rotation.y = ang;
+        T.add(arch);
+        // arch top curve
+        const archTop = new THREE.Mesh(
+          new THREE.CircleGeometry(0.75, 12, 0, Math.PI),
+          new THREE.MeshBasicMaterial({color:0x3a2818, side:THREE.DoubleSide})
+        );
+        archTop.position.set(ax, S1_Y + S1_H*0.4 + S1_H*0.375, az);
+        archTop.rotation.y = ang;
+        T.add(archTop);
+      }
+    }
+
+    /* ---- SLOPED TERRACOTTA CHAJJA ROOF over storey 1 (projecting outward and downward) ---- */
+    const EAVE_Y = S1_Y + S1_H;
+    // Build the chajja as 4 sloped trapezoidal slabs, one per side, that project
+    // outward and slope down
+    function makeSlopedChajja(y, innerW, projection, thickness){
+      const cg = new THREE.Group();
+      const slope = 0.22;
+      const outerW = innerW + projection*2;
+      const slabDiag = Math.sqrt(projection*projection + (projection*slope)*(projection*slope));
+      const slopeAng = Math.atan(slope);
+      // 4 sides
+      for(let side=0; side<4; side++){
+        const ang = side * Math.PI/2;
+        // Trapezoidal slab lying flat then tilted
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(outerW, thickness, slabDiag),
+          new THREE.MeshStandardMaterial({color:TERRACOTTA, roughness:.65, flatShading:true,
+            emissive:0x6a2a10, emissiveIntensity:.15})
+        );
+        // tilt so outer edge slopes down
+        slab.rotation.x = -slopeAng;
+        // Position outward and slightly below y (since it slopes down outward)
+        const midR = (innerW/2 + projection/2);
+        slab.position.set(0, y - projection*slope/2, midR);
+        // Rotate the whole thing around Y
+        const px = slab.position.x, pz = slab.position.z;
+        slab.position.x = Math.cos(ang)*px - Math.sin(ang)*pz;
+        slab.position.z = Math.sin(ang)*px + Math.cos(ang)*pz;
+        slab.rotation.y = ang;
+        // combine rotations properly: we need the slab tilted in its own local frame first, then rotated around Y
+        // Actually simpler: use Object3D with two rotations
+        const wrap = new THREE.Group();
+        wrap.rotation.y = ang;
+        slab.rotation.y = 0;  // clear
+        slab.position.set(0, y - projection*slope/2, midR);
+        wrap.add(slab);
+        cg.add(wrap);
+        // sunlit top edge (lighter)
+        const hi = new THREE.Mesh(
+          new THREE.BoxGeometry(outerW*0.98, thickness*0.4, slabDiag*0.5),
+          new THREE.MeshStandardMaterial({color:TERRACOTTA_LT, roughness:.6,
+            emissive:0x8a3a18, emissiveIntensity:.2})
+        );
+        hi.rotation.x = -slopeAng;
+        hi.position.set(0, y - projection*slope/2 + thickness*0.5, midR - slabDiag*0.15);
+        const wrap2 = new THREE.Group();
+        wrap2.rotation.y = ang;
+        wrap2.add(hi);
+        cg.add(wrap2);
+      }
+      // Central top ring where the sloped chajjas meet
+      const topRing = new THREE.Mesh(
+        new THREE.BoxGeometry(innerW+0.2, thickness*0.8, innerW+0.2),
+        new THREE.MeshStandardMaterial({color:HONEY, roughness:.85})
+      );
+      topRing.position.y = y + thickness*0.2;
+      cg.add(topRing);
+      return cg;
+    }
+    T.add(makeSlopedChajja(EAVE_Y, S1_INNER + 0.8, 3.4, 0.28));
+
+    /* ---- UPPER STOREY: smaller pillared gallery ---- */
+    const S2_Y = EAVE_Y + 0.4;
+    const S2_H = 2.3;
+    const S2_INNER = 6;
+    const s2Inner = new THREE.Mesh(
+      new THREE.BoxGeometry(S2_INNER, S2_H, S2_INNER),
+      new THREE.MeshStandardMaterial({color:HONEY, roughness:.85, flatShading:true})
+    );
+    s2Inner.position.y = S2_Y + S2_H/2;
+    T.add(s2Inner);
+    // Storey 2 pillars (fewer)
+    const PILL2_R = 4.5;
+    for(let side=0; side<4; side++){
+      const ang = side * Math.PI/2;
+      for(let i=-1; i<=1; i++){
+        const localX = i * (PILL2_R*2/2.5);
+        const localZ = PILL2_R;
+        const px = Math.cos(ang)*localX - Math.sin(ang)*localZ;
+        const pz = Math.sin(ang)*localX + Math.cos(ang)*localZ;
+        const pill = makeCarvedPillar(S2_H);
+        pill.position.set(px, S2_Y, pz);
+        pill.rotation.y = ang;
+        T.add(pill);
+      }
+    }
+    // Second sloped chajja
+    const EAVE2_Y = S2_Y + S2_H;
+    T.add(makeSlopedChajja(EAVE2_Y, S2_INNER + 0.6, 2.6, 0.25));
+
+    // Click target for the porch (both storeys)
+    const porchClick = new THREE.Mesh(
+      new THREE.BoxGeometry(BASE_W+1, EAVE2_Y, BASE_W+1),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    porchClick.position.y = EAVE2_Y/2;
+    pickables.push({mesh:porchClick, key:'porch'});
+    T.add(porchClick);
+
+    /* ---- FRONT-PROJECTING PORCH (extra small mandapa jutting south) ---- */
+    // A smaller square porch attached to the front of the main structure
+    const FP_W = 3.5;
+    const FP_H = S1_H;
+    const FP_Y = S1_Y;
+    const FP_Z = 6.0;   // projects out
+    // 4 small pillars at its corners
+    [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx,sz])=>{
+      const pill = makeCarvedPillar(FP_H);
+      pill.position.set(sx*FP_W/2, FP_Y, FP_Z + sz*FP_W/2);
+      T.add(pill);
+    });
+    // Its own small sloped roof
+    const fpRoof = new THREE.Mesh(
+      new THREE.BoxGeometry(FP_W+1.2, 0.25, FP_W+1.2),
+      new THREE.MeshStandardMaterial({color:TERRACOTTA, roughness:.65,
+        emissive:0x6a2a10, emissiveIntensity:.15})
+    );
+    fpRoof.position.set(0, FP_Y + FP_H + 0.13, FP_Z);
+    T.add(fpRoof);
+    // Small dome on top of the front porch (matches photo: dome-topped entrance porch)
+    const fpDome = new THREE.Mesh(
+      new THREE.SphereGeometry(1.4, 16, 12, 0, Math.PI*2, 0, Math.PI*0.5),
+      new THREE.MeshStandardMaterial({color:HONEY, roughness:.8})
+    );
+    fpDome.position.set(0, FP_Y + FP_H + 0.4, FP_Z);
+    T.add(fpDome);
+    // Small pinnacle on the front-porch dome
+    const fpFin = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.18, 0.6, 8),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.8})
+    );
+    fpFin.position.set(0, FP_Y + FP_H + 1.5, FP_Z);
+    T.add(fpFin);
+    const fpFinTop = new THREE.Mesh(
+      new THREE.ConeGeometry(0.12, 0.4, 8),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.8})
+    );
+    fpFinTop.position.set(0, FP_Y + FP_H + 2.0, FP_Z);
+    T.add(fpFinTop);
+
+    /* ---- THE PYRAMIDAL CLUSTER-SHRINE ROOF (samvarana / phamsana style) ----
+       Built as 5 concentric tiers of mini-spires forming a stepped pyramid
+       — the distinctive Chalukya "mountain of spires" seen in the photo. */
+    const CLUSTER_BASE_Y = EAVE2_Y + 0.4;
+
+    // Central stone core forming the pyramid substrate (narrows as it goes up)
+    function makeCoreTier(w, h, y, color){
+      const c = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, w),
+        new THREE.MeshStandardMaterial({color, roughness:.85, flatShading:true})
+      );
+      c.position.y = y + h/2;
+      T.add(c);
+      // top edge highlight
+      const hi = new THREE.Mesh(
+        new THREE.BoxGeometry(w*1.02, 0.08, w*1.02),
+        new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.85})
+      );
+      hi.position.y = y + h + 0.04;
+      T.add(hi);
+      return y + h;
+    }
+    // Mini-spire generator that stands upright
+    function makeMiniSpire(h){
+      const g = new THREE.Group();
+      // Small square base
+      const bs = h*0.35;
+      const sb = new THREE.Mesh(
+        new THREE.BoxGeometry(bs, h*0.4, bs),
+        new THREE.MeshStandardMaterial({color:HONEY, roughness:.85, flatShading:true})
+      );
+      sb.position.y = h*0.2;
+      g.add(sb);
+      // Trim
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(bs*1.15, h*0.06, bs*1.15),
+        new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+      );
+      trim.position.y = h*0.4 - h*0.03;
+      g.add(trim);
+      // Curvilinear spire body — small tapered stack
+      for(let t=0; t<4; t++){
+        const frac = t/4;
+        const w = bs * (1 - frac*0.65);
+        const th = h*0.13;
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(w, th*0.85, w),
+          new THREE.MeshStandardMaterial({color: t%2===0 ? HONEY_LT : HONEY,
+            roughness:.85, flatShading:true})
+        );
+        slab.position.y = h*0.4 + t*th + th/2;
+        g.add(slab);
+      }
+      // Small pyramidal cap
+      const cap = new THREE.Mesh(
+        new THREE.ConeGeometry(bs*0.28, h*0.28, 4),
+        new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.8, flatShading:true})
+      );
+      cap.rotation.y = Math.PI/4;
+      cap.position.y = h*0.92 + h*0.14;
+      g.add(cap);
+      // Tiny finial
+      const fin = new THREE.Mesh(
+        new THREE.SphereGeometry(h*0.07, 6, 4),
+        new THREE.MeshStandardMaterial({color:HONEY_DK})
+      );
+      fin.position.y = h*1.08;
+      g.add(fin);
+      return g;
+    }
+
+    // 5 pyramidal tiers, each a concentric ring of mini-spires
+    // Tier widths and mini-spire counts (decreasing with height)
+    const TIERS = [
+      {w: 9.0, h: 1.0, count: 16, spireH: 1.4},   // widest at bottom
+      {w: 7.8, h: 0.9, count: 12, spireH: 1.3},
+      {w: 6.5, h: 0.85, count: 10, spireH: 1.2},
+      {w: 5.0, h: 0.8, count: 8, spireH: 1.05},
+      {w: 3.6, h: 0.7, count: 4, spireH: 0.9},   // top ring
+    ];
+    let ty = CLUSTER_BASE_Y;
+    TIERS.forEach((tier, tierIdx) => {
+      // Solid core box for this tier
+      const nextY = makeCoreTier(tier.w, tier.h, ty, tierIdx%2 === 0 ? HONEY : HONEY_LT);
+      // Ring of mini-spires sitting on this tier's top edge (pointing up)
+      const ringR = tier.w/2 * 0.85;
+      for(let i=0; i<tier.count; i++){
+        const ang = (i/tier.count) * Math.PI*2 + (tierIdx * 0.15);
+        const spire = makeMiniSpire(tier.spireH);
+        spire.position.set(Math.cos(ang)*ringR, nextY, Math.sin(ang)*ringR);
+        T.add(spire);
+      }
+      // 4 slightly larger corner spires on the wider tiers
+      if(tierIdx < 3){
+        for(let c=0; c<4; c++){
+          const ang = c * Math.PI/2 + Math.PI/4;
+          const cornerSpire = makeMiniSpire(tier.spireH * 1.15);
+          cornerSpire.position.set(Math.cos(ang)*ringR*1.05, nextY, Math.sin(ang)*ringR*1.05);
+          T.add(cornerSpire);
+        }
+      }
+      ty = nextY + tier.spireH * 0.15;  // small overlap
+    });
+
+    // Cluster click target
+    const domeClick = new THREE.Mesh(
+      new THREE.BoxGeometry(10, ty - CLUSTER_BASE_Y, 10),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    domeClick.position.y = (CLUSTER_BASE_Y + ty)/2;
+    pickables.push({mesh:domeClick, key:'dome'});
+    T.add(domeClick);
+
+    /* ---- THE TALL SLIM RIBBED SHIKHARA rising from atop the pyramid cluster ---- */
+    const SH_BASE_Y = ty + 0.2;
+    const SH_BASE_W = 2.6;   // narrower than before for slimmer look
+    const SH_TOP_W  = 0.55;
+    const SH_HEIGHT = 14;    // taller for more prominent needle silhouette
+    const SH_RINGS = 44;
+    function sh_w(t){
+      const base = Math.pow(1-t, 1.55);
+      return SH_BASE_W*base + SH_TOP_W*(1-base);
+    }
+    const shik = new THREE.Group();
+    for(let i=0;i<SH_RINGS;i++){
+      const t=i/SH_RINGS, t2=(i+1)/SH_RINGS;
+      const w1=sh_w(t), w2=sh_w(t2);
+      const rH=SH_HEIGHT/SH_RINGS;
+      const cyl=new THREE.Mesh(
+        new THREE.CylinderGeometry(w2/2, w1/2, rH, 12, 1, false),
+        new THREE.MeshStandardMaterial({
+          color: i%2===0 ? HONEY : HONEY_LT,
+          roughness:.8, flatShading:false
+        })
+      );
+      cyl.position.y = i*rH + rH/2;
+      shik.add(cyl);
+    }
+    // Vertical pagas (10 for slimmer look)
+    for(let p=0;p<10;p++){
+      const ang=(p/10)*Math.PI*2;
+      const ribH = SH_HEIGHT*0.94;
+      const rib=new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, ribH, 0.32),
+        new THREE.MeshStandardMaterial({color:HONEY_DK, roughness:.85})
+      );
+      const midR = sh_w(0.4)/2 * 0.95;
+      rib.position.set(Math.cos(ang)*midR, ribH/2, Math.sin(ang)*midR);
+      rib.lookAt(0, rib.position.y, 0);
+      shik.add(rib);
+    }
+    // Cornice mouldings
+    [0.30, 0.55, 0.78, 0.92].forEach(frac=>{
+      const bandW = sh_w(frac)/2 * 1.08;
+      const band=new THREE.Mesh(
+        new THREE.CylinderGeometry(bandW, bandW, 0.22, 12),
+        new THREE.MeshStandardMaterial({color:HONEY_TRIM, roughness:.85})
+      );
+      band.position.y = SH_HEIGHT*frac;
+      shik.add(band);
+    });
+    // Amalaka disc
+    const amalaka=new THREE.Mesh(
+      new THREE.CylinderGeometry(SH_TOP_W*1.4, SH_TOP_W*1.4, 0.35, 14),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.75})
+    );
+    amalaka.position.y = SH_HEIGHT + 0.18;
+    shik.add(amalaka);
+    // Kalasha
+    const kpot=new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 14, 10),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.7})
+    );
+    kpot.position.y = SH_HEIGHT + 0.78;
+    shik.add(kpot);
+    const kpotTop=new THREE.Mesh(
+      new THREE.ConeGeometry(0.2, 0.6, 10),
+      new THREE.MeshStandardMaterial({color:HONEY_LT, roughness:.7})
+    );
+    kpotTop.position.y = SH_HEIGHT + 1.35;
+    shik.add(kpotTop);
+
+    // Metal pole for trident/flag
+    const pole=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 3.4, 8),
+      new THREE.MeshStandardMaterial({color:TRIDENT, metalness:.4, roughness:.4})
+    );
+    pole.position.y = SH_HEIGHT + 3.35;
+    shik.add(pole);
+    function makeTrishul(){
+      const tg = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({color:TRIDENT, metalness:.5, roughness:.35,
+        emissive:0x4a3018, emissiveIntensity:.2});
+      const cp = new THREE.Mesh(new THREE.ConeGeometry(0.09, 1.4, 6), mat);
+      cp.position.y = 0.7; tg.add(cp);
+      [-1, 1].forEach(side=>{
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 1.2, 6), mat);
+        sp.position.set(side*0.42, 0.6, 0);
+        sp.rotation.z = -side * 0.35;
+        tg.add(sp);
+        const cross = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.08), mat);
+        cross.position.set(side*0.21, 0.05, 0);
+        tg.add(cross);
+      });
+      return tg;
+    }
+    const trishul = makeTrishul();
+    trishul.position.y = SH_HEIGHT + 5.05;
+    shik.add(trishul);
+
+    // Saffron flag on the pole
+    const flagGeo=new THREE.BufferGeometry();
+    flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      0,0,0,  2.5,-0.55,0,  0,-1.4,0
+    ]),3));
+    flagGeo.computeVertexNormals();
+    const flag=new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({
+      color:SAFFRON, side:THREE.DoubleSide, roughness:.7,
+      emissive:0xa84a10, emissiveIntensity:.3
+    }));
+    flag.position.set(0.05, SH_HEIGHT + 4.5, 0);
+    shik.add(flag);
+    rotators.push({obj:flag, type:'flag'});
+
+    shik.position.y = SH_BASE_Y;
+    T.add(shik);
+
+    // Shikhara click target
+    const shClick=new THREE.Mesh(
+      new THREE.CylinderGeometry(SH_BASE_W*0.9, SH_BASE_W*0.9, SH_HEIGHT+5, 12),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    shClick.position.y = SH_BASE_Y + SH_HEIGHT/2 + 2;
+    pickables.push({mesh:shClick, key:'shikhara'});
+    T.add(shClick);
+
+    // Trident+flag click target
+    const fClick = new THREE.Mesh(
+      new THREE.BoxGeometry(4, 4, 4),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    fClick.position.y = SH_BASE_Y + SH_HEIGHT + 5;
+    pickables.push({mesh:fClick, key:'flag'});
+    T.add(fClick);
+
+    // Whole-temple click target (fallback)
+    const tClick = new THREE.Mesh(
+      new THREE.BoxGeometry(BASE_W+2, SH_BASE_Y+2, BASE_W+2),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    tClick.position.y = (SH_BASE_Y+2)/2;
+    pickables.push({mesh:tClick, key:'temple'});
+    T.add(tClick);
+
+    return T;
+  }
+
+  /* ============== Green garden strips with hedges ============== */
+  function buildGardens(){
+    // Three rectangular garden strips in front of the temple
+    function makeGardenStrip(cx, cz, w, d){
+      const g = new THREE.Group();
+      // Green lawn
+      const lawn = new THREE.Mesh(
+        new THREE.BoxGeometry(w, 0.2, d),
+        new THREE.MeshStandardMaterial({color:GARDEN_GREEN, roughness:.9,
+          emissive:0x1a3a08, emissiveIntensity:.1})
+      );
+      lawn.position.y = 0.1;
+      g.add(lawn);
+      // Hedge border (darker green) around the edges
+      const hedgeThickness = 0.35;
+      const hedgeHeight = 0.6;
+      // 4 hedges around
+      [[0, d/2, w, hedgeThickness], [0, -d/2, w, hedgeThickness],
+       [w/2, 0, hedgeThickness, d], [-w/2, 0, hedgeThickness, d]].forEach(([px, pz, pw, pd])=>{
+        const h = new THREE.Mesh(
+          new THREE.BoxGeometry(pw, hedgeHeight, pd),
+          new THREE.MeshStandardMaterial({color:HEDGE_GREEN, roughness:.85, flatShading:true,
+            emissive:0x0a2a08, emissiveIntensity:.08})
+        );
+        h.position.set(px, hedgeHeight/2, pz);
+        g.add(h);
+      });
+      g.position.set(cx, 0, cz);
+      return g;
+    }
+    // Three strips in front of the temple (south side)
+    sScene.add(makeGardenStrip(-10, 18, 6, 8));
+    sScene.add(makeGardenStrip(0, 20, 8, 8));
+    sScene.add(makeGardenStrip(10, 18, 6, 8));
+    // Two strips to the sides
+    sScene.add(makeGardenStrip(-20, 5, 5, 10));
+    sScene.add(makeGardenStrip(20, 5, 5, 10));
+    // Garden click target
+    const gClick = new THREE.Mesh(
+      new THREE.BoxGeometry(40, 1, 8),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    gClick.position.set(0, 0.5, 19);
+    pickables.push({mesh:gClick, key:'garden'});
+    sScene.add(gClick);
+  }
+
+  /* ============== Ornamental palm trees ============== */
+  function buildPalms(){
+    function makePalm(x, z, scale){
+      const g = new THREE.Group();
+      // Slender trunk
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.22, 3.2*scale, 8),
+        new THREE.MeshStandardMaterial({color:PALM_TRUNK, roughness:.9, flatShading:true})
+      );
+      trunk.position.y = 1.6*scale;
+      g.add(trunk);
+      // Palm fronds — 8 leaves splaying out at top
+      for(let i=0; i<8; i++){
+        const ang = (i/8) * Math.PI * 2;
+        const frond = new THREE.Mesh(
+          new THREE.BoxGeometry(2.2*scale, 0.08, 0.3*scale),
+          new THREE.MeshStandardMaterial({color:PALM_GREEN, roughness:.8, flatShading:true,
+            emissive:0x1a4a08, emissiveIntensity:.08, side:THREE.DoubleSide})
+        );
+        frond.position.set(Math.cos(ang)*1.1*scale, 3.2*scale, Math.sin(ang)*1.1*scale);
+        frond.rotation.y = ang;
+        frond.rotation.z = -0.3;   // droop slightly
+        g.add(frond);
+      }
+      // A small cluster of coconut-like fruits under the fronds
+      for(let i=0; i<3; i++){
+        const nut = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15*scale, 6, 4),
+          new THREE.MeshStandardMaterial({color:HONEY_DK, roughness:.9})
+        );
+        const ang = (i/3) * Math.PI*2 + 0.4;
+        nut.position.set(Math.cos(ang)*0.3*scale, 3.0*scale, Math.sin(ang)*0.3*scale);
+        g.add(nut);
+      }
+      g.position.set(x, 0, z);
+      g.scale.setScalar(scale);
+      return g;
+    }
+    // Palms flanking the front approach
+    sScene.add(makePalm(-14, 14, 1.0));
+    sScene.add(makePalm(14, 14, 1.0));
+    sScene.add(makePalm(-16, 8, 0.9));
+    sScene.add(makePalm(16, 8, 0.9));
+    sScene.add(makePalm(-18, -2, 1.0));
+    sScene.add(makePalm(18, -2, 1.0));
+  }
+
+  /* ============== White ornamental fences ============== */
+  function buildFences(){
+    // Small white ornamental fence panels along the plaza edge
+    function makeFencePanel(){
+      const g = new THREE.Group();
+      // Top rail
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(2.0, 0.1, 0.1),
+        new THREE.MeshStandardMaterial({color:WHITE_FENCE, roughness:.7})
+      );
+      top.position.y = 0.9; g.add(top);
+      // Bottom rail
+      const bot = new THREE.Mesh(
+        new THREE.BoxGeometry(2.0, 0.08, 0.1),
+        new THREE.MeshStandardMaterial({color:WHITE_FENCE, roughness:.7})
+      );
+      bot.position.y = 0.2; g.add(bot);
+      // Vertical balusters
+      for(let i=-4; i<=4; i++){
+        const bal = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.7, 0.08),
+          new THREE.MeshStandardMaterial({color:WHITE_FENCE, roughness:.7})
+        );
+        bal.position.set(i*0.22, 0.55, 0);
+        g.add(bal);
+      }
+      // Small posts at ends
+      [-1.0, 1.0].forEach(dx=>{
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.16, 1.1, 0.16),
+          new THREE.MeshStandardMaterial({color:WHITE_FENCE, roughness:.7})
+        );
+        post.position.set(dx, 0.55, 0);
+        g.add(post);
+      });
+      return g;
+    }
+    // Line the front of the plaza (south side)
+    const fenceSpots = [
+      [-6, 22, 0], [-4, 22, 0], [-2, 22, 0], [0, 22, 0], [2, 22, 0], [4, 22, 0], [6, 22, 0],
+      [-6, 15, Math.PI/2], [-6, 13, Math.PI/2],
+      [6, 15, Math.PI/2], [6, 13, Math.PI/2],
+    ];
+    fenceSpots.forEach(([x, z, ry])=>{
+      const f = makeFencePanel();
+      f.position.set(x, 0, z);
+      f.rotation.y = ry;
+      sScene.add(f);
+    });
+  }
+
+  /* ============== The Arabian Sea on the west (-X) ============== */
+  function buildSea(){
+    // Big flat blue sea plane
+    const sea = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 200),
+      new THREE.MeshStandardMaterial({color:SEA_BLUE, roughness:.28, metalness:.55,
+        emissive:0x1a3a5a, emissiveIntensity:.12})
+    );
+    sea.rotation.x = -Math.PI/2;
+    sea.position.set(-100, -0.3, 0);
+    sScene.add(sea);
+
+    // Wave ripples running across the water
+    for(let i=0; i<30; i++){
+      const w = new THREE.Mesh(
+        new THREE.PlaneGeometry(3 + Math.random()*4, 0.2),
+        new THREE.MeshBasicMaterial({color:SEA_LIGHT, transparent:true, opacity:0.55})
+      );
+      w.rotation.x = -Math.PI/2;
+      w.position.set(-40 - Math.random()*130, -0.25, (Math.random()-0.5)*160);
+      w.userData = {baseX: w.position.x, ph: Math.random()*Math.PI*2, driftX: 0.03 + Math.random()*0.05};
+      rotators.push({obj: w, type: 'wave'});
+      sScene.add(w);
+    }
+    // Foam line where sea meets coast
+    const foamLine = new THREE.Mesh(
+      new THREE.PlaneGeometry(6, 200),
+      new THREE.MeshBasicMaterial({color:SEA_FOAM, transparent:true, opacity:0.6})
+    );
+    foamLine.rotation.x = -Math.PI/2;
+    foamLine.position.set(-24, -0.24, 0);
+    sScene.add(foamLine);
+    // Small foamy patches drifting
+    for(let i=0; i<12; i++){
+      const foam = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4 + Math.random()*0.3, 6, 4),
+        new THREE.MeshStandardMaterial({color:SEA_FOAM, roughness:.3, opacity:0.7, transparent:true})
+      );
+      foam.position.set(-24 - Math.random()*15, -0.05, (Math.random()-0.5)*100);
+      foam.userData = {baseY: foam.position.y, ph: Math.random()*Math.PI*2};
+      rotators.push({obj: foam, type: 'foam'});
+      sScene.add(foam);
+    }
+
+    // Sea click target
+    const sClick = new THREE.Mesh(
+      new THREE.PlaneGeometry(140, 160),
+      new THREE.MeshBasicMaterial({visible:false, side:THREE.DoubleSide})
+    );
+    sClick.rotation.x = -Math.PI/2;
+    sClick.position.set(-80, 0.05, 0);
+    pickables.push({mesh:sClick, key:'sea'});
+    sScene.add(sClick);
+  }
+
+  /* ============== Distant peripheral buildings ============== */
+  function buildDistantBuildings(){
+    // Small buildings on the far side (east, and behind)
+    const spots = [
+      {x:22, z:-16, w:5, h:2.8, d:5, c:0xbca890},
+      {x:24, z:-8, w:5, h:2.5, d:5, c:0xa89880},
+      {x:24, z:12, w:5, h:2.6, d:5, c:0xac9a84},
+      {x:-14, z:-24, w:6, h:3.2, d:5, c:0xa89484},
+      {x:0, z:-26, w:5, h:2.8, d:5, c:0xa89680},
+      {x:14, z:-24, w:6, h:3.0, d:5, c:0xbca890},
+    ];
+    spots.forEach(b=>{
+      const bg = new THREE.Group();
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(b.w, b.h, b.d),
+        new THREE.MeshStandardMaterial({color:b.c, roughness:.85, flatShading:true})
+      );
+      wall.position.y = b.h/2;
+      bg.add(wall);
+      const roof = new THREE.Mesh(
+        new THREE.BoxGeometry(b.w*1.05, 0.18, b.d*1.05),
+        new THREE.MeshStandardMaterial({color:TERRACOTTA_DK, roughness:.7})
+      );
+      roof.position.y = b.h + 0.09;
+      bg.add(roof);
+      bg.position.set(b.x, 0, b.z);
+      bg.rotation.y = (Math.random()-0.5)*0.4;
+      sScene.add(bg);
+    });
+  }
+
+  /* ============== Pilgrims ============== */
+  function makePilgrim(x, y, z){
+    const g=new THREE.Group();
+    const colors=[0xd83c2a, 0xe89a2a, 0xf5f0e0, 0xc44a8a, 0x4a8ac4, 0xe8c44a, 0x8a4a8a, 0x5a8a4a];
+    const c=colors[Math.floor(Math.random()*colors.length)];
+    const body=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.22, 0.9, 6),
+      new THREE.MeshStandardMaterial({color:c, roughness:.85})
+    );
+    body.position.y=0.45; g.add(body);
+    const head=new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 8, 6),
+      new THREE.MeshStandardMaterial({color:0x7a5a3a, roughness:.9})
+    );
+    head.position.y=1.05; g.add(head);
+    g.position.set(x, y, z);
+    g.rotation.y=Math.random()*Math.PI*2;
+    g.userData={speed:0.5+Math.random()*0.7};
+    rotators.push({obj:g, type:'pilgrim'});
+    return g;
+  }
+  function buildPilgrims(){
+    // Big crowd on the plaza in front
+    for(let i=0;i<45;i++){
+      const x = (Math.random()-0.5)*20;
+      const z = 12 + Math.random()*10;
+      sScene.add(makePilgrim(x, 0, z));
+    }
+    // Pradakshina ring around the temple
+    for(let i=0;i<24;i++){
+      const ang = (i/24)*Math.PI*2;
+      const r = 12 + Math.random()*2;
+      sScene.add(makePilgrim(Math.cos(ang)*r, 0, Math.sin(ang)*r));
+    }
+    // Sparse pilgrims around the sides
+    for(let i=0;i<10;i++){
+      const side = Math.random()<0.5 ? -1 : 1;
+      const x = side*(15 + Math.random()*4);
+      const z = (Math.random()-0.5)*12;
+      sScene.add(makePilgrim(x, 0, z));
+    }
+  }
+
+  /* ============== Seagulls ============== */
+  function makeBird(i){
+    const g=new THREE.Group();
+    const wingMat=new THREE.MeshBasicMaterial({color:0xf0f0e8, side:THREE.DoubleSide});
+    function wing(){
+      const wg=new THREE.Group();
+      const inner=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.5), wingMat);
+      inner.rotation.x=-Math.PI/2; inner.position.x=-0.75; wg.add(inner);
+      return wg;
+    }
+    const wL=wing(); wL.position.z=0.25; g.add(wL);
+    const wR=wing(); wR.position.z=-0.25; wR.scale.z=-1; g.add(wR);
+    g.userData={
+      cx: -50 + (Math.random()-0.5)*40, cz: (Math.random()-0.5)*40,
+      r: 20 + Math.random()*20, sp: 0.05 + Math.random()*0.05,
+      ph: i*0.7, h: 18 + Math.random()*15, wL, wR
+    };
+    rotators.push({obj:g, type:'bird'});
+    return g;
+  }
+
+  /* ============== Interactions ============== */
+  function bindInteractions(){
+    let downAt=null;
+    canvas.addEventListener('pointerdown', e=>{
+      if(!isOpen) return; downAt=[e.clientX, e.clientY];
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(!isOpen || !downAt) return;
+      const moved=Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]);
+      downAt=null;
+      if(moved>6) return;
+      const r=canvas.getBoundingClientRect();
+      const nv=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+      const rc=new THREE.Raycaster(); rc.setFromCamera(nv, sCamera);
+      const meshes=pickables.map(p=>p.mesh);
+      const hits=rc.intersectObjects(meshes, true);
+      if(hits.length){
+        let hit=hits[0].object;
+        while(hit){
+          const p=pickables.find(q=>q.mesh===hit);
+          if(p){ showPopover(p.key); return; }
+          hit=hit.parent;
+        }
+      }
+    });
+    addEventListener('resize', ()=>{
+      if(!inited) return;
+      sCamera.aspect=innerWidth/innerHeight; sCamera.updateProjectionMatrix();
+      sRenderer.setSize(innerWidth,innerHeight);
+    });
+  }
+  function showPopover(key){
+    const h=HOTSPOTS[key]; if(!h) return;
+    popTitle.textContent=h.title; popBody.textContent=h.body;
+    popover.classList.add('open');
+  }
+
+  /* ============== Animate ============== */
+  function animate(){
+    if(!isOpen){ requestAnimationFrame(animate); return; }
+    requestAnimationFrame(animate);
+    const t=sClock.getElapsedTime();
+    rotators.forEach(r=>{
+      if(r.type==='flag'){
+        r.obj.rotation.y = Math.sin(t*2.5)*0.35;
+        r.obj.scale.x = 1 + Math.sin(t*3)*0.05;
+      } else if(r.type==='pilgrim'){
+        r.obj.rotation.y += 0.002 * r.obj.userData.speed;
+      } else if(r.type==='bird'){
+        const u=r.obj.userData;
+        const a=u.ph + t*u.sp;
+        r.obj.position.set(u.cx+Math.cos(a)*u.r, u.h+Math.sin(t*0.4+u.ph)*3, u.cz+Math.sin(a)*u.r);
+        r.obj.rotation.y=-a;
+        const f=Math.sin(t*7+u.ph)*0.5;
+        u.wL.rotation.x=f; u.wR.rotation.x=f;
+      } else if(r.type==='wave'){
+        r.obj.position.x += r.obj.userData.driftX * 0.02;
+        r.obj.material.opacity = 0.35 + Math.sin(t*1.4 + r.obj.userData.ph)*0.2;
+        if(r.obj.position.x > -25) r.obj.position.x = r.obj.userData.baseX - 100;
+      } else if(r.type==='foam'){
+        r.obj.position.y = r.obj.userData.baseY + Math.sin(t*3 + r.obj.userData.ph)*0.08;
+      }
+    });
+    sControls.update();
+    sRenderer.render(sScene, sCamera);
+  }
+
+  /* ============== open / close ============== */
+  function open(){
+    init(); isOpen=true;
+    root.classList.add('open'); root.setAttribute('aria-hidden','false');
+    sCamera.position.set(24, 20, 42);
+    sControls.target.set(0, 12, 0);
+    sRenderer.setSize(innerWidth, innerHeight);
+    sCamera.aspect=innerWidth/innerHeight; sCamera.updateProjectionMatrix();
+  }
+  function close(){
+    isOpen=false;
+    root.classList.remove('open'); root.setAttribute('aria-hidden','true');
+    popover.classList.remove('open');
+  }
+
+  return {open, close};
+})();
+
+
+
+/* ============================================================
+   IMMERSIVE AMARNATH SCENE
+   The glacial cave shrine of Śiva at 3,888m in the Kashmir Himalaya,
+   home to the naturally-formed ice liṅga (Baba Barfani).
+
+   Reference features from the photos and research:
+   - Massive Himalayan MOUNTAIN CLIFF face towering above
+   - LARGE CAVE opening (about 40m tall × 60m long) — dark
+     recessed hollow in the rock face
+   - Inside: main ICE LIṄGA (Śiva) as a big dome-shaped
+     stalagmite, plus TWO SMALLER ice stalagmites for
+     Pārvatī and Gaṇeśa
+   - Marigold garland offerings on the cave floor
+   - Small framed painting on the cave wall (right of lingam)
+   - Wooden pilgrim BARRIER RAILS in orange/saffron on the
+     cave floor
+   - Long line of RED SAFFRON FLAGS on poles at cave entrance
+   - Metal walkway/steps leading UP to the cave from below
+   - Long queue of pilgrims climbing the steps
+   - Bright red/orange canopy TENTS at the cave base
+   - Rocky mountain slopes on both sides
+   - Patches of snow on the mountain
+   - Clear blue sky above
+   ============================================================ */
+const Amarnath = (function(){
+  const root=document.getElementById('immersive');
+  const canvas=document.getElementById('immersiveScene');
+  const popover=document.getElementById('immPopover');
+  const popTitle=document.getElementById('immPopTitle');
+  const popBody=document.getElementById('immPopBody');
+
+  let inited=false, isOpen=false;
+  let aRenderer, aScene, aCamera, aControls, aClock;
+  const pickables=[];
+  const rotators=[];
+
+  // Palette — matched to photo 2: pale grey-tan craggy rock, warm glowing lingam
+  const ROCK_PALE    = 0x9a948a;   // pale grey-tan main rock
+  const ROCK_LT      = 0xb4aca0;   // sunlit rock
+  const ROCK_MID     = 0x847c70;
+  const ROCK_DK      = 0x5a5248;   // shadow crevices
+  const ROCK_WARM    = 0xa08874;   // warm tan patches
+  const SNOW_WHITE   = 0xf8fcff;
+  const CAVE_DARK    = 0x2a241c;
+  const CAVE_DEEP    = 0x181410;
+  const ICE_GLOW     = 0xf0dCA8;   // warm glowing lingam (lamp-lit)
+  const ICE_GLOW_LT  = 0xf8ecd0;   // brightest highlight
+  const ICE_GLOW_DK  = 0xd8b880;   // shaded side
+  const SAFFRON      = 0xff7a1a;
+  const ORANGE_CLOTH = 0xf06018;   // deep orange chunari cloth
+  const RED_FLAG     = 0xd82030;
+  const RED_TENT     = 0xd0202a;
+  const WOOD_RAIL    = 0xd07a20;
+  const WOOD_DARK    = 0x8a4a10;
+  const MARIGOLD     = 0xff9420;
+  const YELLOW_FL    = 0xffce4a;
+  const GOLD         = 0xe6c14a;
+  const BRASS        = 0xc8a850;   // trishul brass
+  const METAL_STEP   = 0x9ca0a4;
+  const SKY          = 0x6ab4e8;
+
+  const HOTSPOTS={
+    cave:{title:'The Amarnath Cave', body:`A natural cave at 3,888 m in the Kashmir Himālaya, about 40 m tall and 60 m long, worshipped as the abode of Śiva. Legend holds that this is where Śiva revealed the amar kathā — the secret of immortality — to Pārvatī, alone in the cave so no one could hear. But a pair of doves overheard, and became deathless; devotees say their descendants still nest in the cave. It is mentioned in the 12th-century Rājataraṅgiṇī as Amareśvara.`},
+    lingam:{title:'The Ice Liṅga — Bābā Barfānī', body:`The great ice liṅga — Śiva made of living ice. Not carved by any hand, it forms naturally each summer as water drops from the cave roof freeze layer by layer into a solid stalagmite. It waxes with the moon from May to August, reaching its full height on the Śrāvaṇa Pūrṇimā full moon, then gradually melts. Devotees call it Bābā Barfānī — 'Lord of Ice' — and worship it as the svayambhū (self-manifested) form of Śiva. In the lamplight of the shrine it glows a warm gold, visible from far down the slope.`},
+    trishul:{title:'The Triśūla and Chunari', body:`Beside the ice liṅga stands the great brass triśūla — the trident of Śiva — draped in a flowing saffron chunari (sacred cloth) and hung with garlands. The three prongs represent Śiva's triple nature: creator, sustainer, destroyer. The cloth is renewed by priests through the pilgrimage season, and small offerings of flowers gather at its base.`},
+    parvati:{title:'Pārvatī and Gaṇeśa', body:`Beside the great liṅga stand two smaller ice stalagmites, revered as Pārvatī and Gaṇeśa — Śiva's consort and their son. The three ice forms together complete the divine family in the cave. Their sizes wax and wane through the season with the parent liṅga.`},
+    flags:{title:'Saffron Flags at the Entrance', body:`The line of bright saffron and red flags fluttering at the cave mouth marks the shrine's presence from far down the valley. Each flag is a devotional offering; pilgrims tie them on the poles as they arrive after the arduous trek.`},
+    railings:{title:'Pilgrim Barriers', body:`The bright orange wooden railings on the cave floor form the darśan corridor. Pilgrims queue in single file behind them, keeping a respectful distance from the sacred ice as they pass. Each dawn priests replace the marigold garlands and rose petals scattered around the liṅga.`},
+    yatra:{title:'The Amarnath Yātrā', body:`The pilgrimage to Amarnath is one of Hinduism's most arduous — pilgrims trek 46 km from Pahalgam (or the shorter but steeper 14 km from Baltal), crossing 4,300 m passes to reach the cave. The queue snakes for hours across the boulder slopes below the shrine. The traditional Yātrā culminates on Rakṣā Bandhana Pūrṇimā when the Chhaḍī Mubārak — the sacred silver mace of Śiva — is carried to the shrine.`},
+    tents:{title:'The Base Camp Tents', body:`The bright red canopies at the cave base are pilgrim shelters, langar (free-food) tents, and small stalls — set up each summer by the Shrine Board and volunteer organisations. At 3,888 m the oxygen is thin; the tents offer rest, tea, and medical help before the final steep steps up to the cave.`},
+    mountain:{title:'Amarnath Mountain', body:`The peak that shelters the cave rises to 5,186 m — a sheer wall of fractured grey granite towering above the shrine. The surrounding valley glaciers feed the meltwater that seeps through the rock to form the ice liṅga each summer. The mountain remains snow-locked most of the year; only in Śrāvaṇa (July–August) is the cave accessible.`}
+  };
+
+  function init(){
+    if(inited) return; inited=true;
+    aRenderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+    aRenderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth<640?1.5:2));
+    aRenderer.setSize(innerWidth, innerHeight);
+    aRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+    aRenderer.toneMappingExposure=1.15;
+    aRenderer.outputColorSpace=THREE.SRGBColorSpace;
+
+    aScene=new THREE.Scene();
+    aScene.background=new THREE.Color(SKY);
+    aScene.fog=new THREE.FogExp2(0x9ac4e8, 0.0016);
+
+    aCamera=new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 900);
+    aCamera.position.set(20, 16, 46);
+    aControls=new OrbitControls(aCamera, canvas);
+    aControls.enableDamping=true; aControls.dampingFactor=.08;
+    aControls.minDistance=14; aControls.maxDistance=220;
+    aControls.maxPolarAngle=Math.PI*0.5;
+    aControls.target.set(0, 16, -8);
+
+    aClock=new THREE.Clock();
+    buildScene();
+    bindInteractions();
+    animate();
+  }
+
+  function buildScene(){
+    aScene.add(new THREE.AmbientLight(0xffffff, 0.72));
+    aScene.add(new THREE.HemisphereLight(0xcfe8fa, 0x8a8074, 0.85));
+    const sun=new THREE.DirectionalLight(0xfff2da, 1.8);
+    sun.position.set(30, 80, 50); aScene.add(sun);
+    // STRONG warm glow inside the cave to light the lingam (visible from outside)
+    const caveGlow = new THREE.PointLight(0xffc878, 3.2, 40, 1.8);
+    caveGlow.position.set(0, 12, -6);
+    aScene.add(caveGlow);
+    const caveGlow2 = new THREE.PointLight(0xffb060, 1.6, 25, 2);
+    caveGlow2.position.set(0, 8, -2);
+    aScene.add(caveGlow2);
+
+    buildGroundSlope();
+    buildMountainAndCave();
+    buildIceLingams();
+    buildTrishul();
+    buildRailings();
+    buildFlagLine();
+    buildStepsWalkway();
+    buildTents();
+    buildOfferings();
+    buildSnakingQueue();
+    for(let i=0;i<4;i++) aScene.add(makeBird(i));
+    buildDistantPeaks();
+  }
+
+  /* ============== Rocky boulder slope descending from the cave ============== */
+  function buildGroundSlope(){
+    // Broad base ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(300, 300),
+      new THREE.MeshStandardMaterial({color:ROCK_MID, roughness:1, flatShading:true})
+    );
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = 0;
+    aScene.add(ground);
+
+    // The scree/boulder slope rising toward the cave — a big tilted plane of rocks
+    const slope = new THREE.Mesh(
+      new THREE.PlaneGeometry(70, 40),
+      new THREE.MeshStandardMaterial({color:ROCK_PALE, roughness:1, flatShading:true})
+    );
+    slope.rotation.x = -Math.PI/2 + 0.25;   // tilted upward toward the cave
+    slope.position.set(0, 3.2, 12);
+    aScene.add(slope);
+
+    // MANY boulders scattered across the slope (as in photo 2 — boulder field)
+    for(let i=0; i<90; i++){
+      const size = 0.4 + Math.random()*1.4;
+      const boulder = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(size, 0),
+        new THREE.MeshStandardMaterial({
+          color: [ROCK_PALE, ROCK_LT, ROCK_MID, ROCK_DK][Math.floor(Math.random()*4)],
+          roughness:1, flatShading:true})
+      );
+      const x = (Math.random()-0.5)*60;
+      const z = 2 + Math.random()*32;
+      // Height follows the slope: closer to cave (small z) = higher
+      const slopeY = Math.max(0, 8 - z*0.28);
+      boulder.position.set(x, slopeY + size*0.3, z);
+      boulder.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+      boulder.scale.y = 0.6 + Math.random()*0.3;
+      aScene.add(boulder);
+    }
+    // Snow patches on the slope
+    for(let i=0; i<12; i++){
+      const patch = new THREE.Mesh(
+        new THREE.CircleGeometry(1.2 + Math.random()*1.5, 8),
+        new THREE.MeshStandardMaterial({color:SNOW_WHITE, roughness:.8,
+          emissive:0x1a2a3a, emissiveIntensity:.05})
+      );
+      patch.rotation.x = -Math.PI/2 + 0.25;
+      const x = (Math.random()-0.5)*55;
+      const z = 6 + Math.random()*26;
+      const slopeY = Math.max(0.06, 8 - z*0.28);
+      patch.position.set(x, slopeY + 0.06, z);
+      aScene.add(patch);
+    }
+  }
+
+  /* ============== The vertical craggy mountain and cave ============== */
+  function buildMountainAndCave(){
+    // The cave mouth is now a SMOOTH CURVED ARCH cut into one continuous
+    // cliff wall (extruded shape with an arch hole) — no floating slabs.
+    const CAVE_W = 22;     // arch width at the base
+    const CAVE_H = 15;     // arch height (top of the curve)
+    const CAVE_D = 10;
+    const CAVE_Y = 8;      // cave floor height
+    const CAVE_CZ = -8;
+
+    const matPale = new THREE.MeshStandardMaterial({color:ROCK_PALE, roughness:1, flatShading:true});
+    const matLt   = new THREE.MeshStandardMaterial({color:ROCK_LT, roughness:1, flatShading:true});
+    const matMid  = new THREE.MeshStandardMaterial({color:ROCK_MID, roughness:1, flatShading:true});
+    const matDk   = new THREE.MeshStandardMaterial({color:ROCK_DK, roughness:1, flatShading:true});
+    const matWarm = new THREE.MeshStandardMaterial({color:ROCK_WARM, roughness:1, flatShading:true});
+    const matArr = [matPale, matLt, matMid, matWarm];
+
+    /* === ONE CONTINUOUS CLIFF WALL with a curved arch hole === */
+    const WALL_W = 66;
+    const WALL_H = 56;         // rises far above the cave
+    const WALL_DEPTH = 12;
+    const archR = CAVE_W/2;    // 11
+    const sideH = CAVE_H - archR;   // straight sides below the curve (4)
+
+    const shape = new THREE.Shape();
+    shape.moveTo(-WALL_W/2, 0);
+    shape.lineTo( WALL_W/2, 0);
+    shape.lineTo( WALL_W/2, WALL_H);
+    shape.lineTo(-WALL_W/2, WALL_H);
+    shape.closePath();
+    // Arch-shaped hole: straight jambs then a smooth semicircular crown
+    const hole = new THREE.Path();
+    hole.moveTo(-archR, 0);
+    hole.lineTo(-archR, sideH);
+    hole.absarc(0, sideH, archR, Math.PI, 0, true);
+    hole.lineTo(archR, 0);
+    hole.closePath();
+    shape.holes.push(hole);
+
+    const wallGeo = new THREE.ExtrudeGeometry(shape, {depth: WALL_DEPTH, bevelEnabled:false});
+    const wall = new THREE.Mesh(wallGeo, matPale);
+    // Front face of the wall sits at the cave mouth plane
+    wall.position.set(0, CAVE_Y, CAVE_CZ + CAVE_D/2 - WALL_DEPTH);
+    aScene.add(wall);
+
+    /* Craggy texture ON the wall face — protruding slabs, flush (no gaps) */
+    const frontZ = CAVE_CZ + CAVE_D/2;
+    for(let i=0; i<26; i++){
+      const w = 3 + Math.random()*5;
+      const h = 4 + Math.random()*8;
+      const x = (Math.random()-0.5)*(WALL_W - 8);
+      const y = CAVE_Y + 4 + Math.random()*(WALL_H - 10);
+      // Skip the arch opening area
+      if(Math.abs(x) < archR + 3 && y < CAVE_Y + CAVE_H + 4) continue;
+      const slab = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, 0.8 + Math.random()*0.8),
+        matArr[Math.floor(Math.random()*4)]
+      );
+      slab.position.set(x, y, frontZ + 0.2);
+      slab.rotation.z = (Math.random()-0.5)*0.1;
+      aScene.add(slab);
+    }
+    // Thin dark vertical crevice strips on the face (flush against it)
+    for(let i=0; i<10; i++){
+      const x = (Math.random()-0.5)*(WALL_W - 10);
+      if(Math.abs(x) < archR + 2) continue;
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, 14 + Math.random()*22, 0.5),
+        matDk
+      );
+      strip.position.set(x, CAVE_Y + 16 + Math.random()*22, frontZ + 0.3);
+      strip.rotation.z = (Math.random()-0.5)*0.08;
+      aScene.add(strip);
+    }
+    // A shaded ring hugging the arch rim (subtle curved shadow around the mouth)
+    const rimGeo = new THREE.TorusGeometry(archR + 0.6, 0.7, 8, 30, Math.PI);
+    const rim = new THREE.Mesh(rimGeo, matMid);
+    rim.position.set(0, CAVE_Y + sideH, frontZ + 0.15);
+    aScene.add(rim);
+
+    /* === CAVE INTERIOR — smooth dark barrel vault === */
+    // Curved vault: half-cylinder lying along Z, dark inside
+    const vaultGeo = new THREE.CylinderGeometry(archR - 0.2, archR - 0.2, CAVE_D + 2,
+      26, 1, true, Math.PI/2, Math.PI);
+    const vault = new THREE.Mesh(vaultGeo, new THREE.MeshStandardMaterial({
+      color:CAVE_DARK, roughness:1, side:THREE.DoubleSide}));
+    vault.rotation.x = Math.PI/2;      // axis along Z, arc covering the top half
+    vault.position.set(0, CAVE_Y + sideH, CAVE_CZ);
+    aScene.add(vault);
+    // Straight dark side walls below the vault spring line
+    [-1, 1].forEach(side=>{
+      const jamb = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, sideH + 0.5, CAVE_D + 2),
+        new THREE.MeshStandardMaterial({color:CAVE_DARK, roughness:1})
+      );
+      jamb.position.set(side*(archR - 0.5), CAVE_Y + sideH/2, CAVE_CZ);
+      aScene.add(jamb);
+    });
+    // Dark back wall (disc + box to fully close the far end)
+    const backDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(archR, 26, 0, Math.PI),
+      new THREE.MeshStandardMaterial({color:CAVE_DEEP, roughness:1})
+    );
+    backDisc.position.set(0, CAVE_Y + sideH, CAVE_CZ - CAVE_D/2 - 0.8);
+    aScene.add(backDisc);
+    const backBox = new THREE.Mesh(
+      new THREE.BoxGeometry(CAVE_W, sideH + 1, 1),
+      new THREE.MeshStandardMaterial({color:CAVE_DEEP, roughness:1})
+    );
+    backBox.position.set(0, CAVE_Y + sideH/2, CAVE_CZ - CAVE_D/2 - 0.8);
+    aScene.add(backBox);
+    // Cave floor
+    const caveFloor = new THREE.Mesh(
+      new THREE.BoxGeometry(CAVE_W - 1, 0.5, CAVE_D + 2),
+      new THREE.MeshStandardMaterial({color:CAVE_DARK, roughness:.95})
+    );
+    caveFloor.position.set(0, CAVE_Y + 0.25, CAVE_CZ);
+    aScene.add(caveFloor);
+    // Elevated rock plinth below the cave floor
+    const plinth = new THREE.Mesh(
+      new THREE.BoxGeometry(CAVE_W + 8, CAVE_Y, 13),
+      matMid
+    );
+    plinth.position.set(0, CAVE_Y/2, CAVE_CZ + 3.5);
+    aScene.add(plinth);
+
+    /* === Cliff flanks — big flush columns extending left/right of the wall === */
+    for(let side of [-1, 1]){
+      for(let i=0; i<4; i++){
+        const colW = 7 + Math.random()*3;
+        const colH = 40 + Math.random()*14;
+        const x = side*(WALL_W/2 + 3 + i*6);
+        const slab = new THREE.Mesh(
+          new THREE.BoxGeometry(colW, colH, 12 + Math.random()*3),
+          matArr[(i + (side>0?1:0))%4]
+        );
+        slab.position.set(x, CAVE_Y + colH/2 - 4, CAVE_CZ + (Math.random()-0.5)*2);
+        slab.rotation.y = (Math.random()-0.5)*0.15;
+        aScene.add(slab);
+      }
+    }
+
+    /* === Jagged peaks along the top of the wall === */
+    const peakBaseY = CAVE_Y + WALL_H;
+    const peakSpots = [
+      {x:-26, h:13, r:5}, {x:-16, h:17, r:6}, {x:-7, h:11, r:4.5},
+      {x:1, h:19, r:6}, {x:9, h:14, r:5}, {x:18, h:21, r:6.5}, {x:27, h:12, r:4.5},
+    ];
+    peakSpots.forEach((p, i)=>{
+      const peak = new THREE.Mesh(
+        new THREE.ConeGeometry(p.r, p.h, 5, 1, false),
+        matArr[i%4]
+      );
+      peak.position.set(p.x, peakBaseY + p.h/2 - 1.5, CAVE_CZ + (Math.random()-0.5)*3);
+      peak.rotation.y = Math.random()*Math.PI;
+      aScene.add(peak);
+      if(i%2===0){
+        const snow = new THREE.Mesh(
+          new THREE.ConeGeometry(p.r*0.45, p.h*0.35, 5, 1, false),
+          new THREE.MeshStandardMaterial({color:SNOW_WHITE, roughness:.75,
+            emissive:0x1a2a3a, emissiveIntensity:.05})
+        );
+        snow.position.set(p.x, peakBaseY + p.h - p.h*0.175 - 1.5, peak.position.z);
+        snow.rotation.y = peak.rotation.y;
+        aScene.add(snow);
+      }
+    });
+
+    // Snow ledges on the wall face (flush)
+    for(let i=0; i<12; i++){
+      const x = (Math.random()-0.5)*(WALL_W - 8);
+      const y = CAVE_Y + 12 + Math.random()*36;
+      if(Math.abs(x) < archR + 3 && y < CAVE_Y + CAVE_H + 5) continue;
+      const snow = new THREE.Mesh(
+        new THREE.BoxGeometry(3 + Math.random()*3, 0.35, 0.9),
+        new THREE.MeshStandardMaterial({color:SNOW_WHITE, roughness:.8,
+          emissive:0x1a2a3a, emissiveIntensity:.05})
+      );
+      snow.position.set(x, y, frontZ + 0.5);
+      snow.rotation.y = (Math.random()-0.5)*0.3;
+      aScene.add(snow);
+    }
+
+    // Ceiling stalactites hanging inside the vault
+    for(let i=0; i<6; i++){
+      const stal = new THREE.Mesh(
+        new THREE.ConeGeometry(0.45 + Math.random()*0.4, 1.2 + Math.random()*1.2, 5),
+        new THREE.MeshStandardMaterial({color:CAVE_DARK, roughness:1, flatShading:true})
+      );
+      const sx = (Math.random()-0.5)*(CAVE_W - 8);
+      const vy = CAVE_Y + sideH + Math.sqrt(Math.max(0, (archR-1.5)*(archR-1.5) - sx*sx)) - 0.6;
+      stal.position.set(sx, vy, CAVE_CZ - CAVE_D/2 + 2 + Math.random()*(CAVE_D - 4));
+      stal.rotation.x = Math.PI;
+      aScene.add(stal);
+    }
+
+    // Cave click target
+    const cClick = new THREE.Mesh(
+      new THREE.BoxGeometry(CAVE_W - 3, CAVE_H - 3, CAVE_D - 2),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    cClick.position.set(0, CAVE_Y + CAVE_H/2, CAVE_CZ);
+    pickables.push({mesh:cClick, key:'cave'});
+    aScene.add(cClick);
+
+    // Mountain click target
+    const mClick = new THREE.Mesh(
+      new THREE.BoxGeometry(70, 60, 10),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    mClick.position.set(0, CAVE_Y + CAVE_H + 30, CAVE_CZ);
+    pickables.push({mesh:mClick, key:'mountain'});
+    aScene.add(mClick);
+
+    aScene.userData.CAVE = {W:CAVE_W, H:CAVE_H, D:CAVE_D, Y:CAVE_Y, cz:CAVE_CZ};
+  }
+
+  /* ============== Ice lingams — warm glowing, near the cave mouth ============== */
+  function buildIceLingams(){
+    const C = aScene.userData.CAVE;
+    /* MAIN LIṄGA — bigger and glowing warm gold, positioned forward
+       so it's clearly visible from outside (photo 2) */
+    const LING = new THREE.Group();
+    const LING_BASE_R = 2.6;
+    const LING_H = 8.5;
+    const RINGS = 24;
+    for(let i=0; i<RINGS; i++){
+      const t = i/RINGS;
+      let r;
+      if(t < 0.68){
+        r = LING_BASE_R * (1 - t*0.32);
+      } else {
+        const dt = (t - 0.68)/0.32;
+        r = LING_BASE_R*0.782 * Math.sqrt(1 - dt*dt);
+      }
+      const cyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(r, r * (i===0 ? 1.04 : 1), LING_H/RINGS, 22),
+        new THREE.MeshStandardMaterial({
+          color: i%3===0 ? ICE_GLOW_LT : (i%3===1 ? ICE_GLOW : ICE_GLOW_DK),
+          roughness:.35, metalness:.05,
+          emissive: 0xd8a850, emissiveIntensity:.5
+        })
+      );
+      cyl.position.y = i*LING_H/RINGS + LING_H/RINGS/2;
+      LING.add(cyl);
+    }
+    // Positioned forward in the cave — close to the mouth so it's visible from far
+    LING.position.set(0.5, C.Y + 0.5, C.cz + 1);
+    aScene.add(LING);
+
+    // Strong warm halo glow around the lingam
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(LING_BASE_R + 1.2, 18, 14),
+      new THREE.MeshBasicMaterial({color:0xffd890, transparent:true, opacity:0.13})
+    );
+    glow.position.set(0.5, C.Y + LING_H/2 + 0.5, C.cz + 1);
+    aScene.add(glow);
+    rotators.push({obj:glow, type:'glow'});
+    // Outer softer halo
+    const glow2 = new THREE.Mesh(
+      new THREE.SphereGeometry(LING_BASE_R + 2.5, 18, 14),
+      new THREE.MeshBasicMaterial({color:0xffe0a0, transparent:true, opacity:0.06})
+    );
+    glow2.position.copy(glow.position);
+    aScene.add(glow2);
+
+    // Lingam click target
+    const lClick = new THREE.Mesh(
+      new THREE.CylinderGeometry(LING_BASE_R + 0.6, LING_BASE_R + 0.6, LING_H + 1, 16),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    lClick.position.set(0.5, C.Y + LING_H/2 + 0.5, C.cz + 1);
+    pickables.push({mesh:lClick, key:'lingam'});
+    aScene.add(lClick);
+
+    /* Smaller Pārvatī stalagmite */
+    const PARV = new THREE.Group();
+    const PARV_R = 1.0, PARV_H = 3.4;
+    for(let i=0; i<12; i++){
+      const t = i/12;
+      let r;
+      if(t < 0.65) r = PARV_R * (1 - t*0.4);
+      else { const dt = (t-0.65)/0.35; r = PARV_R*0.74 * Math.sqrt(1-dt*dt); }
+      const cyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(r, r, PARV_H/12, 16),
+        new THREE.MeshStandardMaterial({
+          color: i%2===0 ? ICE_GLOW_LT : ICE_GLOW,
+          roughness:.35, emissive:0xc89850, emissiveIntensity:.35
+        })
+      );
+      cyl.position.y = i*PARV_H/12 + PARV_H/24;
+      PARV.add(cyl);
+    }
+    PARV.position.set(-4.5, C.Y + 0.5, C.cz + 0.5);
+    aScene.add(PARV);
+
+    /* Smallest Gaṇeśa stalagmite */
+    const GANE = new THREE.Group();
+    const GANE_R = 0.65, GANE_H = 2.0;
+    for(let i=0; i<10; i++){
+      const t = i/10;
+      let r;
+      if(t < 0.6) r = GANE_R * (1 - t*0.45);
+      else { const dt = (t-0.6)/0.4; r = GANE_R*0.67 * Math.sqrt(1-dt*dt); }
+      const cyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(r, r, GANE_H/10, 12),
+        new THREE.MeshStandardMaterial({
+          color: i%2===0 ? ICE_GLOW_LT : ICE_GLOW,
+          roughness:.35, emissive:0xc89850, emissiveIntensity:.35
+        })
+      );
+      cyl.position.y = i*GANE_H/10 + GANE_H/20;
+      GANE.add(cyl);
+    }
+    GANE.position.set(-6.3, C.Y + 0.5, C.cz + 1.2);
+    aScene.add(GANE);
+
+    const pClick = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 4.5, 3.5),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    pClick.position.set(-5.2, C.Y + 2.3, C.cz + 0.8);
+    pickables.push({mesh:pClick, key:'parvati'});
+    aScene.add(pClick);
+  }
+
+  /* ============== THE TRISHUL with saffron chunari (photo 1) ============== */
+  function buildTrishul(){
+    const C = aScene.userData.CAVE;
+    const TG = new THREE.Group();
+    const brassMat = new THREE.MeshStandardMaterial({color:BRASS, metalness:.65, roughness:.3,
+      emissive:0x6a5018, emissiveIntensity:.3});
+
+    // Tall central shaft
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.11, 5.2, 8),
+      brassMat
+    );
+    shaft.position.y = 2.6;
+    TG.add(shaft);
+
+    // Trident head at the top — classic trishul: a crescent bow curving up
+    // from the junction, side prongs rising from the crescent tips, and a
+    // taller thin central prong in the middle (matches the real shrine trishul)
+    const headY = 5.2;
+    // Junction collar where the head meets the shaft
+    const collar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.13, 0.13, 0.22, 10),
+      brassMat
+    );
+    collar.position.y = headY;
+    TG.add(collar);
+    // Crescent bow — half-torus opening upward (U shape)
+    const BOW_R = 0.72;
+    const bow = new THREE.Mesh(
+      new THREE.TorusGeometry(BOW_R, 0.06, 8, 28, Math.PI),
+      brassMat
+    );
+    bow.position.y = headY + BOW_R;
+    bow.rotation.z = Math.PI;   // open upward
+    TG.add(bow);
+    // Side prongs rising vertically from the crescent tips — slim, tapering
+    [-1, 1].forEach(side=>{
+      const spBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.065, 1.5, 8),
+        brassMat
+      );
+      spBody.position.set(side*BOW_R, headY + BOW_R + 0.75, 0);
+      TG.add(spBody);
+      const spTip = new THREE.Mesh(
+        new THREE.ConeGeometry(0.065, 0.5, 8),
+        brassMat
+      );
+      spTip.position.set(side*BOW_R, headY + BOW_R + 1.5 + 0.25, 0);
+      TG.add(spTip);
+    });
+    // Central prong — taller, slim, tapering to a sharp point
+    const cpBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.08, 2.1, 8),
+      brassMat
+    );
+    cpBody.position.y = headY + 1.05;
+    TG.add(cpBody);
+    const cpTip = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.55, 8),
+      brassMat
+    );
+    cpTip.position.y = headY + 2.1 + 0.27;
+    TG.add(cpTip);
+
+    /* === The flowing SAFFRON CHUNARI draped from the trident head === */
+    // Big flowing orange cloth — built as a long tapered box cascade
+    const clothMat = new THREE.MeshStandardMaterial({color:ORANGE_CLOTH, roughness:.7,
+      side:THREE.DoubleSide, emissive:0x8a3008, emissiveIntensity:.25});
+    // Upper knot/bundle at the crossbar
+    const knot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 10, 8),
+      clothMat
+    );
+    knot.position.y = headY - 0.1;
+    TG.add(knot);
+    // Long flowing drape down the shaft — several overlapping tapering panels
+    const drapePanels = [
+      {w:0.9, h:1.8, y:headY - 1.1, x:0.15, rz:0.06},
+      {w:1.1, h:2.2, y:headY - 2.3, x:-0.1, rz:-0.05},
+      {w:1.3, h:2.4, y:headY - 3.6, x:0.12, rz:0.08},
+      {w:0.8, h:1.6, y:headY - 4.4, x:-0.25, rz:-0.1},
+    ];
+    drapePanels.forEach(p=>{
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(p.w, p.h, 0.12),
+        clothMat
+      );
+      panel.position.set(p.x, p.y, 0.18);
+      panel.rotation.z = p.rz;
+      TG.add(panel);
+    });
+    // Slightly deeper red inner drape
+    const innerDrape = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 4.0, 0.1),
+      new THREE.MeshStandardMaterial({color:0xc83818, roughness:.7, side:THREE.DoubleSide,
+        emissive:0x6a1808, emissiveIntensity:.2})
+    );
+    innerDrape.position.set(-0.05, headY - 2.6, 0.05);
+    TG.add(innerDrape);
+
+    // Marigold garland strings hanging on the trishul
+    for(let s=0; s<2; s++){
+      for(let i=0; i<10; i++){
+        const flower = new THREE.Mesh(
+          new THREE.SphereGeometry(0.11, 6, 4),
+          new THREE.MeshStandardMaterial({
+            color: i%2===0 ? MARIGOLD : YELLOW_FL,
+            roughness:.7, emissive:0x6a3010, emissiveIntensity:.2
+          })
+        );
+        flower.position.set(
+          (s===0 ? 0.3 : -0.3) + Math.sin(i*0.6)*0.12,
+          headY - 0.3 - i*0.35,
+          0.3
+        );
+        TG.add(flower);
+      }
+    }
+
+    // Position: right beside the main lingam (as in photo 1)
+    TG.position.set(3.8, C.Y + 0.5, C.cz + 1.5);
+    aScene.add(TG);
+
+    // Trishul click target
+    const tClick = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 8, 2),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    tClick.position.set(3.8, C.Y + 4.2, C.cz + 1.5);
+    pickables.push({mesh:tClick, key:'trishul'});
+    aScene.add(tClick);
+  }
+
+  /* ============== Orange wooden railings ============== */
+  function buildRailings(){
+    const C = aScene.userData.CAVE;
+    const railY = C.Y + 1.6;
+    const railZ = C.cz + 4.5;
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(C.W - 5, 0.2, 0.4),
+      new THREE.MeshStandardMaterial({color:WOOD_RAIL, roughness:.75, flatShading:true,
+        emissive:0x4a1a05, emissiveIntensity:.15})
+    );
+    rail.position.set(0, railY, railZ);
+    aScene.add(rail);
+    for(let x = -(C.W/2 - 3.5); x <= (C.W/2 - 3.5); x += 0.7){
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.09, 1.6, 6),
+        new THREE.MeshStandardMaterial({color:WOOD_RAIL, roughness:.75,
+          emissive:0x4a1a05, emissiveIntensity:.12})
+      );
+      post.position.set(x, railY - 0.6, railZ);
+      aScene.add(post);
+      const tip = new THREE.Mesh(
+        new THREE.ConeGeometry(0.09, 0.28, 6),
+        new THREE.MeshStandardMaterial({color:WOOD_DARK, roughness:.75})
+      );
+      tip.position.set(x, railY + 0.24, railZ);
+      aScene.add(tip);
+    }
+    const rail2 = new THREE.Mesh(
+      new THREE.BoxGeometry(C.W - 5, 0.15, 0.3),
+      new THREE.MeshStandardMaterial({color:WOOD_RAIL, roughness:.75,
+        emissive:0x4a1a05, emissiveIntensity:.12})
+    );
+    rail2.position.set(0, railY + 0.5, railZ - 0.3);
+    aScene.add(rail2);
+
+    const rClick = new THREE.Mesh(
+      new THREE.BoxGeometry(C.W - 5, 2, 1),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    rClick.position.set(0, railY, railZ);
+    pickables.push({mesh:rClick, key:'railings'});
+    aScene.add(rClick);
+  }
+
+  /* ============== Flag line at the cave mouth ============== */
+  function buildFlagLine(){
+    const C = aScene.userData.CAVE;
+    const flagCount = 14;
+    for(let i=0; i<flagCount; i++){
+      const t = i/(flagCount-1);
+      const x = -(C.W/2 - 2.5) + t * (C.W - 5);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 3.5, 6),
+        new THREE.MeshStandardMaterial({color:WOOD_DARK, roughness:.85})
+      );
+      pole.position.set(x, C.Y + 0.5 + 1.75, C.cz + C.D/2 + 0.8);
+      pole.rotation.x = -0.3;
+      aScene.add(pole);
+      const flagColor = i%2===0 ? SAFFRON : RED_FLAG;
+      const flagGeo = new THREE.BufferGeometry();
+      flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        0,0,0,  1.4,-0.3,0,  0,-0.9,0
+      ]), 3));
+      flagGeo.computeVertexNormals();
+      const flag = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({
+        color: flagColor, side: THREE.DoubleSide, roughness:.7,
+        emissive: i%2===0 ? 0xa84a10 : 0x8a1010, emissiveIntensity:.3
+      }));
+      flag.position.set(x + 0.08, C.Y + 3.3, C.cz + C.D/2 + 1.8);
+      flag.userData = {ph: i*0.5};
+      rotators.push({obj:flag, type:'flag'});
+      aScene.add(flag);
+    }
+
+    const fClick = new THREE.Mesh(
+      new THREE.BoxGeometry(C.W - 2, 4, 2),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    fClick.position.set(0, C.Y + 3, C.cz + C.D/2 + 1.4);
+    pickables.push({mesh:fClick, key:'flags'});
+    aScene.add(fClick);
+  }
+
+  /* ============== Steps up to the cave ============== */
+  function buildStepsWalkway(){
+    const C = aScene.userData.CAVE;
+    const stairStartZ = C.cz + C.D/2 + 4;
+    const stairEndZ = C.cz + C.D/2 + 22;
+    const stairStartY = C.Y + 0.5;
+    const stairEndY = 0.6;
+    const stepCount = 24;
+    for(let i=0; i<stepCount; i++){
+      const t = i/(stepCount-1);
+      const z = stairStartZ + t * (stairEndZ - stairStartZ);
+      const y = stairStartY + t * (stairEndY - stairStartY);
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(4.5, 0.2, 0.9),
+        new THREE.MeshStandardMaterial({color:METAL_STEP, roughness:.5, metalness:.4,
+          flatShading:true})
+      );
+      step.position.set(3, y + 0.1, z);
+      aScene.add(step);
+    }
+    [-1, 1].forEach(side=>{
+      const railLen = Math.hypot(stairEndZ - stairStartZ, stairEndY - stairStartY);
+      const railAng = Math.atan2(stairEndY - stairStartY, stairEndZ - stairStartZ);
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.12, railLen),
+        new THREE.MeshStandardMaterial({color:WOOD_RAIL, roughness:.7,
+          emissive:0x4a1a05, emissiveIntensity:.15})
+      );
+      rail.position.set(3 + side*2.3,
+        (stairStartY + stairEndY)/2 + 1.0,
+        (stairStartZ + stairEndZ)/2);
+      rail.rotation.x = -railAng;
+      aScene.add(rail);
+      for(let p=0; p<8; p++){
+        const t = p/7;
+        const z = stairStartZ + t * (stairEndZ - stairStartZ);
+        const y = stairStartY + t * (stairEndY - stairStartY);
+        const post = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 1.0, 0.1),
+          new THREE.MeshStandardMaterial({color:WOOD_RAIL, roughness:.7,
+            emissive:0x4a1a05, emissiveIntensity:.15})
+        );
+        post.position.set(3 + side*2.3, y + 0.55, z);
+        aScene.add(post);
+      }
+    });
+  }
+
+  /* ============== Red tents at the base ============== */
+  function buildTents(){
+    const C = aScene.userData.CAVE;
+    function makeRedTent(cx, cz, w, d, isPointed){
+      const t = new THREE.Group();
+      [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx, sz])=>{
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
+          new THREE.MeshStandardMaterial({color:WOOD_DARK, roughness:.85})
+        );
+        pole.position.set(sx*w/2, 1.2, sz*d/2);
+        t.add(pole);
+      });
+      if(isPointed){
+        const canopy = new THREE.Mesh(
+          new THREE.ConeGeometry(Math.max(w,d)*0.75, 1.8, 4),
+          new THREE.MeshStandardMaterial({color:RED_TENT, roughness:.75, flatShading:true,
+            emissive:0x6a1010, emissiveIntensity:.18})
+        );
+        canopy.rotation.y = Math.PI/4;
+        canopy.position.y = 2.4 + 0.9;
+        t.add(canopy);
+      } else {
+        const canopy = new THREE.Mesh(
+          new THREE.BoxGeometry(w+0.4, 0.15, d+0.4),
+          new THREE.MeshStandardMaterial({color:RED_TENT, roughness:.7, flatShading:true,
+            emissive:0x6a1010, emissiveIntensity:.18})
+        );
+        canopy.position.y = 2.5;
+        t.add(canopy);
+      }
+      const groundSheet = new THREE.Mesh(
+        new THREE.BoxGeometry(w, 0.08, d),
+        new THREE.MeshStandardMaterial({color:0x4a3a2a, roughness:.95})
+      );
+      groundSheet.position.y = 0.04;
+      t.add(groundSheet);
+      t.position.set(cx, 0, cz);
+      return t;
+    }
+    aScene.add(makeRedTent(-12, C.cz + C.D/2 + 16, 3, 3, true));
+    aScene.add(makeRedTent(-7, C.cz + C.D/2 + 20, 4, 4, false));
+    aScene.add(makeRedTent(-2, C.cz + C.D/2 + 24, 4, 3.5, true));
+    aScene.add(makeRedTent(8, C.cz + C.D/2 + 22, 3.5, 4, true));
+    aScene.add(makeRedTent(13, C.cz + C.D/2 + 18, 4, 3, false));
+    aScene.add(makeRedTent(-16, C.cz + C.D/2 + 24, 3.5, 3.5, true));
+
+    const tClick = new THREE.Mesh(
+      new THREE.BoxGeometry(32, 5, 14),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    tClick.position.set(-2, 2.5, C.cz + C.D/2 + 20);
+    pickables.push({mesh:tClick, key:'tents'});
+    aScene.add(tClick);
+  }
+
+  /* ============== Offerings on the cave floor ============== */
+  function buildOfferings(){
+    const C = aScene.userData.CAVE;
+    for(let i=0; i<35; i++){
+      const flower = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 6, 4),
+        new THREE.MeshStandardMaterial({
+          color: Math.random()<0.5 ? MARIGOLD : YELLOW_FL,
+          roughness:.7,
+          emissive: Math.random()<0.5 ? 0x6a3010 : 0x8a6a10, emissiveIntensity:.2
+        })
+      );
+      const x = (Math.random()-0.5)*(C.W - 6);
+      const z = C.cz + (Math.random()-0.5)*(C.D - 3) + 1;
+      flower.position.set(x, C.Y + 0.65, z);
+      aScene.add(flower);
+    }
+    // Red rose petals near the lingam base (photo 1 shows red petals)
+    for(let i=0; i<12; i++){
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 6, 4),
+        new THREE.MeshStandardMaterial({color:0xc82030, roughness:.7,
+          emissive:0x6a1010, emissiveIntensity:.2})
+      );
+      petal.position.set(0.5 + (Math.random()-0.5)*4, C.Y + 0.63,
+        C.cz + 2 + (Math.random()-0.5)*2);
+      petal.scale.y = 0.4;
+      aScene.add(petal);
+    }
+  }
+
+  /* ============== The snaking pilgrim queue (photo 2) ============== */
+  function makePilgrim(x, y, z){
+    const g = new THREE.Group();
+    const colors = [0xd83c2a, 0xe89a2a, 0xf5f0e0, 0xc44a8a, 0x4a8ac4, 0xe8c44a, 0x8a4a8a, 0x5a8a4a, 0xe8c840, 0x3a6ac8];
+    const c = colors[Math.floor(Math.random()*colors.length)];
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.2, 0.85, 6),
+      new THREE.MeshStandardMaterial({color:c, roughness:.85})
+    );
+    body.position.y = 0.42;
+    g.add(body);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 8, 6),
+      new THREE.MeshStandardMaterial({color:0x7a5a3a, roughness:.9})
+    );
+    head.position.y = 1.0;
+    g.add(head);
+    g.position.set(x, y, z);
+    g.rotation.y = Math.random()*Math.PI*2;
+    g.userData = {speed: 0.5 + Math.random()*0.7};
+    rotators.push({obj: g, type: 'pilgrim'});
+    return g;
+  }
+  function buildSnakingQueue(){
+    const C = aScene.userData.CAVE;
+    /* The LONG SNAKING QUEUE from photo 2 — a curved path of pilgrims
+       winding across the boulder slope from bottom-left up to the cave */
+    // Define the queue path as a curve
+    const queuePts = [
+      new THREE.Vector3(-28, 0.4, 30),
+      new THREE.Vector3(-20, 0.8, 26),
+      new THREE.Vector3(-12, 1.6, 24),
+      new THREE.Vector3(-6, 2.4, 20),
+      new THREE.Vector3(-10, 3.4, 16),
+      new THREE.Vector3(-14, 4.2, 13),
+      new THREE.Vector3(-8, 5.4, 10),
+      new THREE.Vector3(0, 6.5, 8),
+      new THREE.Vector3(3, 7.5, 6),
+      new THREE.Vector3(3, C.Y + 0.4, C.cz + C.D/2 + 3),
+    ];
+    const queueCurve = new THREE.CatmullRomCurve3(queuePts);
+    // Place ~70 pilgrims along the curve
+    const QN = 70;
+    for(let i=0; i<QN; i++){
+      const t = i/(QN-1);
+      const p = queueCurve.getPoint(t);
+      // Small lateral offset for natural clumping
+      const off = (Math.random()-0.5)*0.8;
+      aScene.add(makePilgrim(p.x + off, p.y, p.z + (Math.random()-0.5)*0.6));
+    }
+    // Also pilgrims inside the cave doing darshan
+    for(let i=0; i<8; i++){
+      aScene.add(makePilgrim((Math.random()-0.5)*(C.W - 8), C.Y + 0.5,
+        C.cz + 4.5 + Math.random()*1.2));
+    }
+    // Cluster around the tents
+    for(let i=0; i<12; i++){
+      const x = -14 + Math.random()*28;
+      const z = C.cz + C.D/2 + 16 + Math.random()*8;
+      aScene.add(makePilgrim(x, 0, z));
+    }
+    // Queue click target (the snaking line region)
+    const qClick = new THREE.Mesh(
+      new THREE.BoxGeometry(40, 4, 26),
+      new THREE.MeshBasicMaterial({visible:false})
+    );
+    qClick.position.set(-8, 3, 18);
+    pickables.push({mesh:qClick, key:'yatra'});
+    aScene.add(qClick);
+  }
+
+  /* ============== Distant peaks ============== */
+  function buildDistantPeaks(){
+    for(let i=0; i<8; i++){
+      const peak = new THREE.Mesh(
+        new THREE.ConeGeometry(9 + Math.random()*6, 24 + Math.random()*12, 6, 1, false),
+        new THREE.MeshStandardMaterial({color:0x9aa4b0, roughness:.9, flatShading:true})
+      );
+      peak.position.set(-90 + i*24, 10, -70 - Math.random()*15);
+      peak.rotation.y = Math.random()*Math.PI;
+      aScene.add(peak);
+      const cap = new THREE.Mesh(
+        new THREE.ConeGeometry(3.5 + Math.random()*2, 7 + Math.random()*3, 6, 1, false),
+        new THREE.MeshStandardMaterial({color:SNOW_WHITE, roughness:.7,
+          emissive:0x1a2a3a, emissiveIntensity:.05})
+      );
+      cap.position.set(peak.position.x, peak.position.y + 14, peak.position.z);
+      cap.rotation.y = peak.rotation.y;
+      aScene.add(cap);
+    }
+  }
+
+  /* ============== Birds ============== */
+  function makeBird(i){
+    const g = new THREE.Group();
+    const wingMat = new THREE.MeshBasicMaterial({color:0x33302c, side:THREE.DoubleSide});
+    function wing(){
+      const wg = new THREE.Group();
+      const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.4), wingMat);
+      inner.rotation.x = -Math.PI/2;
+      inner.position.x = -0.6;
+      wg.add(inner);
+      return wg;
+    }
+    const wL = wing(); wL.position.z = 0.2; g.add(wL);
+    const wR = wing(); wR.position.z = -0.2; wR.scale.z = -1; g.add(wR);
+    g.userData = {
+      cx: (Math.random()-0.5)*30, cz: -10 + (Math.random()-0.5)*20,
+      r: 20 + Math.random()*15, sp: 0.05 + Math.random()*0.05,
+      ph: i*0.7, h: 35 + Math.random()*18, wL, wR
+    };
+    rotators.push({obj: g, type: 'bird'});
+    return g;
+  }
+
+  /* ============== Interactions ============== */
+  function bindInteractions(){
+    let downAt = null;
+    canvas.addEventListener('pointerdown', e=>{
+      if(!isOpen) return; downAt = [e.clientX, e.clientY];
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(!isOpen || !downAt) return;
+      const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+      downAt = null;
+      if(moved > 6) return;
+      const r = canvas.getBoundingClientRect();
+      const nv = new THREE.Vector2(
+        ((e.clientX - r.left)/r.width)*2 - 1,
+        -((e.clientY - r.top)/r.height)*2 + 1
+      );
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera(nv, aCamera);
+      const meshes = pickables.map(p => p.mesh);
+      const hits = rc.intersectObjects(meshes, true);
+      if(hits.length){
+        let hit = hits[0].object;
+        while(hit){
+          const p = pickables.find(q => q.mesh === hit);
+          if(p){ showPopover(p.key); return; }
+          hit = hit.parent;
+        }
+      }
+    });
+    addEventListener('resize', () => {
+      if(!inited) return;
+      aCamera.aspect = innerWidth/innerHeight;
+      aCamera.updateProjectionMatrix();
+      aRenderer.setSize(innerWidth, innerHeight);
+    });
+  }
+  function showPopover(key){
+    const h = HOTSPOTS[key]; if(!h) return;
+    popTitle.textContent = h.title;
+    popBody.textContent = h.body;
+    popover.classList.add('open');
+  }
+
+  /* ============== Animate ============== */
+  function animate(){
+    if(!isOpen){ requestAnimationFrame(animate); return; }
+    requestAnimationFrame(animate);
+    const t = aClock.getElapsedTime();
+    rotators.forEach(r=>{
+      if(r.type === 'flag'){
+        r.obj.rotation.y = Math.sin(t*2.5 + r.obj.userData.ph)*0.35;
+        r.obj.scale.x = 1 + Math.sin(t*3 + r.obj.userData.ph)*0.05;
+      } else if(r.type === 'pilgrim'){
+        r.obj.rotation.y += 0.002 * r.obj.userData.speed;
+      } else if(r.type === 'bird'){
+        const u = r.obj.userData;
+        const a = u.ph + t*u.sp;
+        r.obj.position.set(u.cx + Math.cos(a)*u.r, u.h + Math.sin(t*0.4 + u.ph)*3,
+          u.cz + Math.sin(a)*u.r);
+        r.obj.rotation.y = -a;
+        const f = Math.sin(t*7 + u.ph)*0.5;
+        u.wL.rotation.x = f; u.wR.rotation.x = f;
+      } else if(r.type === 'glow'){
+        r.obj.material.opacity = 0.10 + Math.sin(t*1.2)*0.04;
+      }
+    });
+    aControls.update();
+    aRenderer.render(aScene, aCamera);
+  }
+
+  /* ============== open / close ============== */
+  function open(){
+    init(); isOpen = true;
+    root.classList.add('open'); root.setAttribute('aria-hidden', 'false');
+    aCamera.position.set(20, 16, 46);
+    aControls.target.set(0, 16, -8);
+    aRenderer.setSize(innerWidth, innerHeight);
+    aCamera.aspect = innerWidth/innerHeight;
+    aCamera.updateProjectionMatrix();
+  }
+  function close(){
+    isOpen = false;
+    root.classList.remove('open'); root.setAttribute('aria-hidden', 'true');
+    popover.classList.remove('open');
+  }
+
+  return {open, close};
+})();
+
+
 /* Wire the "Visit in 3D" button — dispatches to the right immersive scene per site */
 (function wireVisitButton(){
   const btn=document.getElementById('visit3dBtn');
@@ -7781,6 +11016,9 @@ const Gangotri = (function(){
     'Yamunotri':   {open:()=>Yamunotri.open(),   close:()=>Yamunotri.close(),   title:'Yamunotri',       sub:'Chota Char Dhām · Source of the Yamunā · 3,293 m · Uttarakhand'},
     'Kedarnath':   {open:()=>Kedarnath.open(),   close:()=>Kedarnath.close(),   title:'Kedarnath',       sub:'Chota Char Dhām · Jyotirliṅga · 3,583 m · Uttarakhand'},
     'Gangotri':    {open:()=>Gangotri.open(),    close:()=>Gangotri.close(),    title:'Gaṅgotrī',         sub:'Chota Char Dhām · Source of the Gaṅgā · 3,100 m · Uttarakhand'},
+    'Ujjain':      {open:()=>Ujjain.open(),      close:()=>Ujjain.close(),      title:'Mahākāleśvara',   sub:'Jyotirliṅga at Ujjain · Kumbh Melā · Sapta Purī · Madhya Pradesh'},
+    'Somnath':     {open:()=>Somnath.open(),     close:()=>Somnath.close(),     title:'Somanātha',       sub:'First of the Twelve Jyotirliṅgas · Gujarat'},
+    'Amarnath':    {open:()=>Amarnath.open(),    close:()=>Amarnath.close(),    title:'Amarnāth Cave',   sub:'Ice Liṅga · 3,888 m · Jammu & Kashmir'},
   };
 
   btn.addEventListener('click', e=>{
