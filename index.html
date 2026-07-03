@@ -368,7 +368,7 @@
 </script>
 
 <div class="titlecard">
-  <div class="project-title">Sacred Geography 3D Model Project</div>
+  <div class="project-title">Sacred Geography 3D Model Project<br>Digital Interactive Map For India</div>
   <div class="byline">By DEVANSHI SINGH NEGI &nbsp;·&nbsp; 7B</div>
   <div class="kicker">Tīrtha · Sacred Geography</div>
   <h1>Bhārata<span class="sub">a living relief of pilgrimage</span></h1>
@@ -1576,6 +1576,7 @@ const Quiz=(()=>{
     if(wasRight) correctThisRun++;
     if(answeredCount>=2){
       runFinished=true;
+      streak=0; updateScore();   // streak resets once both questions are done
       nextBtn.textContent='Play again ↻';
       if(correctThisRun===2){
         feedbackEl.textContent = '🎉 PERFECT! Both answers right! 🎉  ' + feedbackEl.textContent;
@@ -1930,8 +1931,9 @@ const Quiz=(()=>{
 
   function next(){
     if(runFinished){
-      // reset for a fresh run of 2 questions
+      // reset for a fresh run of 2 questions (streak resets too)
       runFinished=false; answeredCount=0; correctThisRun=0; qIndex=0;
+      streak=0; updateScore();
       nextBtn.textContent='Next question →';
       card.classList.remove('celebrate');
     }
